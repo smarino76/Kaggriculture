@@ -1,7 +1,10 @@
+﻿# Kaggriculture: Brainstorming
+
 Each player starts with an empty farm and a small amount of income (seed money, if you will). Each turn, they can perform actions such as moving around the board, purchasing seeds or livestock, planting seeds, watering plants, harvesting produce or animal products, and selling that produce at the market. The game runs for a fixed amount of time representing one season, and the winner is determined by who has the most money in the bank at the end.
 
 
-Object Types
+## Object Types
+
 Type	Yield Type	Seed Cost	Base Market Price	Time to First Yield	Time to Max Yield	Subsequent Yields	Max Yield	Action Cost	Yield / tile / day
 Wheat	One-time	10	25	2 days	4 days	none	6 (4 unfertilized)	1	0.80
 Carrot	One-time	20	35	2 days	3 days	none	4 (3 unfertilized)	1	0.75
@@ -24,20 +27,24 @@ Wheat and Carrot only reach their listed Max Yield of 6 and 4 with fertilizer; w
 Tomato and Strawberry are ongoing but not indefinite: production is capped at 4 scheduled yields (tomato at ages 8–11, strawberry at ages 10, 12, 14, 16), after which the plant decays into a weed.
 All plants must be watered every day. They will turn into weeds if they are not watered for two successive days. All animals must be fed every day using wheat. They will escape and be unrecoverable if they are not fed for two successive days. Wheat is also available to buy at the market and can be purchased at the current market price.
 
-Actions
+## Actions
+
 Each turn, the player may take one action. There are 24 turns per day, and 30 days in the season - 720 total turns.
 
 Farmer / Farm Hand Action
 Each Farmer / Farm Hand can be given an action every turn. Farmer/Farm Hand CAN occupy the same space.
 
-Movement
+### Movement
+
 NORTH, SOUTH, EAST, WEST — Move one cell in that direction. Moves off the edge of the board are no-ops. Locked tiles are passable: a unit may move onto and across unbought quadrants, but tile actions (PLANT, WATER, BUILD_*, etc.) all no-op on a locked tile and consume nothing. The exception is the shed actions PICKUP, DROP, and PLACE-into-shed, which work from any shed-access tile even while that tile is locked — they use the tile only as a standing position and never change it.
-Shed
+### Shed
+
 Picks up an item from the shed (must be orthogonally adjacent) into the inventory
 
 PICKUP <item> [n] — move up to n of <item> (default 1) from the shed into the active farmer/hand's inventory. Any item present in the shed is valid (animals, fertilizer, harvested produce, etc.). Seeds live in a separate slot and are never picked up — PLANT consumes them directly.
 DROP — orthogonally adjacent to the shed, dump the active farmer/hand's entire current inventory into the shed. Overflow past shedCapacity is discarded. No-op if not shed-adjacent.
-Plants
+### Plants
+
 PLANT — Plant a seed purchased from the market
 Seeds are automatically available to all Farmers / Farm Hands
 If you try to plant too many in a specific turn, none are planted
@@ -46,7 +53,8 @@ WATER — Water a plant. This only needs to be done once per day, and subsequent
 HARVEST — Gather produce from a plant. If the plant does not have subsequent yields, it will be removed from the map. Each harvest action will yield at least one unit of the crop, with the potential of additional yield depending on watering and fertilizer (the formula differs by crop type — see harvest yields below). Harvested items are added to the inventory.
 FERTILIZE — Fertilize a plant to increase its potential yield (see harvest yields below).
 Doubles the per-day yield bonus for the next 3 days. The bonus only applies on days the plant is also watered (basic needs first).
-Animals
+### Animals
+
 PLACE <item> [n] — Drop items from the active farmer/hand inventory into either a tile or the shed:
 Animal placement: standing on a matching unoccupied structure (GOOSE on a coop, SHEEP/COW on a pasture) places one animal from inventory onto the tile. The n argument is ignored.
 Shed drop: standing orthogonally adjacent to the shed moves up to n (default 1) of <item> from inventory into the shed. Capped by shedCapacity; excess stays in inventory.
@@ -54,20 +62,24 @@ FEED — Feed an animal using wheat (only needs to be done once per day)
 HARVEST — Collect the eggs/milk/wool produced by the animal.
 COLLECT_FERTILIZER — Collect 1 fertilizer from the animal. Every surviving animal makes 1 available at the end of each day, whether or not it was fed or cared for. Uncollected fertilizer does not accumulate, so an animal left alone for five days still yields 1 unit.
 CARE — Care for an animal (once per day, no-op if already cared for). See animal care below.
-Animal Care
+### Animal Care
+
 CARE banks a yield bonus that is paid out on the animal's next scheduled production:
 
 At end of day, if the animal was both fed AND cared for that day, pending_care_bonus increments by 1. Days where the animal was unfed do not bank a bonus (basic needs first).
 On a scheduled production day, if the animal is fed, the entire banked bonus is added to that production's yield (in addition to the base 1) and the bank resets to 0.
 If the animal is unfed on the production day, the base 1 unit is still produced, but the banked bonus is not applied and the bank resets to 0.
 pending_care_bonus is capped indirectly by the per-animal max_held cap on yield_units.
-Terrain
+### Terrain
+
 BUILD_COOP - adds a coop to an unoccupied tile
 BUILD_PASTURE - add pasture to an unoccupied tile
 DIG — Remove a plant from a square to free up space OR remove a weed from a square (does not yield any produce) OR remove an empty goose coop / pasture. A coop or pasture with an animal on it cannot be dug; the DIG is a no-op.
-Other
+### Other
+
 PASS — Default if there is nothing to do (optional)
-Market Action
+### Market Action
+
 Each turn you can submit up to maxMarketOrdersPerTurn (default 10) market actions; any orders past that limit are silently dropped. This is an ordered list and market orders will be processed in order simultaneously (one from each player) while both players have orders.
 
 BUY_SEED — Purchase N units of a single item from the market.
@@ -82,7 +94,8 @@ SELL WHEAT 1
 HIRE — Hire a farm hand for the day. Cost increases for each extra hand hired on the same day.
 BUY_LAND - unlock a new 5x5 segment of land to plant on. Increasing in cost.
 Costs are: $1k, $2k, $4k
-Watering / Animal Feed
+## Watering / Animal Feed
+
 Plants (and animals) must be watered/fed a minimum of every other day. Watering only needs to be done once per day, and subsequent watering actions are a no-op. In the case of plants not watered for two consecutive days, at the end of the day they turn into a WEED. In the case of animals they escape (unrecoverable).
 
 A new seed starts with consecutive_unwatered = 1 — the planting day itself counts as the first missed day. A seed planted and left unwatered that same day reaches 2 at the end-of-day refresh and becomes a weed that night, before it grows. There is no grace period for fresh plantings.
@@ -91,7 +104,8 @@ A newly placed animal starts with consecutive_unfed = 0, so it survives its firs
 
 Note that watering one-time yield plants during their yield window results in a higher yield. This is NOT true for ongoing yield plants/animals. See below.
 
-Harvest Yields
+## Harvest Yields
+
 Plants will potentially have higher yields based on how well they have been cared for.
 
 One-time crops (wheat, carrot, melon): Starting at half the plant's max_yield_day (Time to Max Yield) rounded up, watering during the bonus window will add one unit per day to the total harvestable yield.
@@ -100,34 +114,41 @@ Ongoing crops (tomato, strawberry): Scheduled production happens at fixed interv
 Once a plant has hit its maximum lifespan, the total yield available on the plant will reduce by 1 every other turn until it hits 0, at which point the plant becomes a weed.
 One-time crops reach max lifespan one day after max_yield_day.
 Ongoing crops start decay one day after their cumulative production count reaches max_yield (i.e. they've fired enough scheduled productions to hit the cap, regardless of whether the produce has been harvested).
-Map Features
+## Map Features
+
 Each player has their own farm with a set number of squares. Players are unable to see the state of the other’s shed, but can see the state of their opponent’s farm.
 
-Farm Space
+### Farm Space
+
 The land near your farm is a boardSize × boardSize grid (default 10×10), divided into four 5×5 quadrants. At first, your farm covers one quadrant (25% of the squares). For an increasingly large fee, you can buy the neighboring quadrants and eventually cover 100% of the squares.
 Each plant or animal occupies one square on the farm.
 Players can allocate these squares however they choose between crops and livestock. There are no specific limits per type.
 Weeds have a chance of spawning on any empty cells on the farm, and must be cleared before the land can be used for other purposes.
 Squares on the farm can be either a plant, a coop/pasture, a weed, or empty.
-Shed (Inventory)
+### Shed (Inventory)
+
 Functions as an inventory for items that are harvested but not yet sold, or for seeds that have not yet been planted
 Farmer and hired farm hands will spawn at the shed at the start of each day
 Farmer and hired farm hands drop their inventory at the end of the day in the shed (if there is room)
 Limited to 100 items, excluding seeds. Once the shed is full, any further items added (via PLACE mid-day or end-of-day inventory drop) are discarded — there is no overflow holding area, so stockpiling on farmer/hand inventories does not bypass the cap.
 The shed sits at the center of the board and is not a tile — it never appears in the tiles array, whose only values are None, "LOCKED", and structure dicts. "Orthogonally adjacent to the shed" means standing on one of the four center tiles, (half-1, half-1), (half, half-1), (half-1, half), (half, half) for half = boardSize // 2. At the default boardSize = 10 those are (4,4), (5,4), (4,5), and (5,5), one in each quadrant. Since only NW starts unlocked, three of those four tiles begin locked; the shed is reachable from all of them regardless, because the shed itself is never locked.
 
-Farmer/Farm Hand
-Hiring
+### Farmer/Farm Hand
+
+### Hiring
+
 Hiring is a market order (HIRE). It costs more every time you want to hire an additional hand each day. At the end of the day all, hands drop inventory at the farm and disappear (need to be re-hired each day)
 Cost is farmHandCostMult * fib(n) where n is the number of hires already made today (fib starts 1, 1, 2, 3, 5, 8, 13, …).
 With the default farmHandCostMult = 1: 1, 1, 2, 3, 5, 8, 13, 21, etc… (resets at the start of each day)
 A hired hand appears orthogonally adjacent to the shed in a free space following NWSE. If there are not open spaces, it looks for the one with the least occupants, breaking ties by NWSE preference
 Spawn placement ignores whether the tile is locked. Since the main farmer starts on (4,4), the least-occupied rule sends the first hire of each day to (5,4), which is locked until the NE quadrant is bought. Locked tiles are passable, so a hand spawned on one can move back to unlocked land.
-Inventory
+### Inventory
+
 When harvesting or picking items up, they are added to inventory.
 Can drop items in the shed
 At the end of the day, all items in all inventory will be added to shed inventory (if there is room). Anything that doesn't fit is discarded — overflow is lost.
-Town Buildings
+## Town Buildings
+
 As the season progresses, new shops unlock at regular intervals (every townShopUnlockInterval days, default 3). Each unlock is drawn uniformly at random with replacement from the full shop table, so the same shop can unlock more than once — a season might end up with three bakeries and no yarn store. Once unlocked, a shop stays active for the rest of the game, and unlocking stops after 8 total instances. Total demand grows monotonically as more shops unlock.
 
 Each unlocked shop instance consumes one of every product it demands every townShopSellInterval turns (default 4). So with the default interval, a shop demanding wheat removes 6 wheat from the market per day, and two copies of that shop remove 12. Single-product shops consume 2x.
@@ -143,7 +164,8 @@ Ice Cream Shop	strawberries, milk, wheat
 Pet Cafe	carrots (2x)
 Smoothie Shop	strawberries, milk
 Farmers Market	wheat, carrots, tomatoes, strawberries
-Market Mechanics
+## Market Mechanics
+
 The market has an unlimited supply of seeds and animals at fixed prices. Sell prices, however, move dynamically per resource and persist across days.
 
 Every product (and fertilizer) starts the game with a market inventory of I0 = 10,000 units, far above any single game's realistic production volume so that inventory is essentially guaranteed to stay positive. The sell price for a product is base at I0, rises as inventory falls (players buying or town consumption draining supply), and falls as inventory grows (players selling).
@@ -158,7 +180,8 @@ Only WHEAT and FERTILIZER can be bought from the market via BUY_PRODUCT (other p
 
 The buy price is quoted at the post-buy inventory and the sell price is quoted at the pre-sell inventory, so an immediate buy followed by a sell of the same item against an otherwise-unchanged market nets exactly zero.
 
-The Price Function
+## The Price Function
+
 For each resource the curve is defined by a base price, an anchor throughput T, and an independent shape function + target move for each side of the equilibrium:
 
 price(inv) = base + sign · amp · f(|inv − I0|)
@@ -193,7 +216,8 @@ Wool	200	10,000	105	log	0.20	sq	3.20	$240	$1	$1
 Fertilizer	100	10,000	200	linear	0.40	linear	0.40	$140	$60	$20
 The defaults live in MARKET_PARAMS in kaggriculture.py. Per-resource overrides (sparse: any subset of base, I0, T, below_func, below_target, above_func, above_target) can be supplied at episode creation via env.configuration["marketParams"] without touching code, e.g. {"WOOL": {"above_target": 0.95}}.
 
-Turn Processing Order
+## Turn Processing Order
+
 Action validation — verify action legality
 Player actions — record the actions taken by each player (happening simultaneously)
 Market actions - process market queue in order by player (described above)
@@ -203,13 +227,16 @@ Day refresh — if applicable, update the condition of plants and animals for a 
 Market refresh — modify the price of items on the market based on sells from previous turn
 Income update — update the player’s bank based on any buys or sells
 Farm update — clear plants that have been harvested, items from the inventory that have been used or sold, add new plants/animals to the farm, etc
-Win Conditions
+## Win Conditions
+
 The win condition is simple- whoever has the greatest number of coins at the end of the season is the winner. It is also possible that the two players will tie.
 
-Reward
+## Reward
+
 The player who has the most money in the bank at the end of the game wins. Unsold items in the inventory do not count towards that total.
 
-Observation Format
+## Observation Format
+
 The top-level observation passed to each agent:
 
 {
@@ -268,7 +295,9 @@ an animal structure dict (coop/pasture, optionally occupied):
     "fertilizer_available": bool,   # set at end-of-day for every surviving animal; cleared by COLLECT_FERTILIZER
     "pending_care_bonus":   int,    # banked CARE bonus, applied on the next yield tick
   }
-Quick Start
+## Quick Start
+
+```python
 from kaggle_environments import make
 
 
@@ -282,7 +311,10 @@ def my_agent(obs):
 env = make("kaggriculture", configuration={"episodeSteps": 200})
 env.run([my_agent, "random"])
 env.render(mode="ipython", width=800, height=800)
-Configuration Defaults
+```
+
+## Configuration Defaults
+
 Per-crop seed costs and per-product base prices are not configurable; they are documented in the Object Types and Price Function tables above. The configurable knobs are:
 
 Parameter	Default	Description
@@ -301,7 +333,8 @@ seed	null	Optional input seed for deterministic episode generation; cleared from
 
 
 
-Resumen del juego
+## Resumen del juego
+
 
 Cada jugador administra una granja y gana quien termina con más dinero en el banco. Las acciones se dividen en:
 
@@ -311,7 +344,8 @@ Gestión temporal: las plantas y animales requieren cuidados diarios y tienen ve
 Competencia indirecta: ambos jugadores comparten mercado, precios, inventario del mercado y demanda de la ciudad.
 El dinero de los productos almacenados no cuenta al final, por lo que el agente debe decidir cuándo vender y no solamente cuánto producir.
 
-Datos disponibles para el agente
+## Datos disponibles para el agente
+
 
 En cada observación puede conocer:
 
@@ -335,7 +369,8 @@ Tiendas desbloqueadas y su demanda.
 No puede ver el almacén privado del oponente.
 Esto permite inferir bastante sobre el rival: cultivos, animales, ritmo de expansión, posiciones, ventas indirectas y posible estrategia, aunque no sus reservas exactas.
 
-Puntos estratégicos importantes
+## Puntos estratégicos importantes
+
 1. La planificación temporal domina el juego
 Plantar tarde puede ser inútil. Por ejemplo:
 
@@ -394,7 +429,8 @@ Yarn store favorece wool.
 Pet Cafe favorece carrots.
 Farmers Market crea demanda amplia.
 Ice Cream Shop y Smoothie Shop favorecen strawberries y milk.
-Cómo construiría el dataset
+## Cómo construiría el dataset
+
 Yo separaría el dataset en tres niveles.
 
 Nivel 1: decisiones locales
@@ -454,7 +490,8 @@ Uso de trabajadores.
 Evolución de precios.
 Este nivel sirve para aprender planificación de largo plazo y no solo reacciones inmediatas.
 
-Qué tipos de partidas necesitamos generar
+## Qué tipos de partidas necesitamos generar
+
 Para que el dataset no quede sesgado hacia una única forma de jugar, convendría generar partidas con:
 
 Estrategia de cultivos rápidos.
@@ -482,7 +519,8 @@ Contratar demasiadas manos.
 Comprar terreno demasiado tarde.
 Cosechar después de la ventana óptima.
 Ignorar las malas hierbas.
-Recompensa recomendada para estudiar
+## Recompensa recomendada para estudiar
+
 La recompensa final debe seguir siendo el dinero bancario al terminar, pero para entrenar o analizar estrategias podemos usar métricas auxiliares:
 
 Cambio de dinero por día.
@@ -495,7 +533,8 @@ Precio medio de venta.
 Valor de oportunidad de no vender.
 No mezclaría automáticamente estas métricas con la recompensa oficial sin experimentar, porque una bonificación intermedia podría enseñar al agente a maximizar ingresos diarios y perjudicar su resultado final.
 
-Preguntas que deberíamos resolver en la reunión
+## Preguntas que deberíamos resolver en la reunión
+
 ¿El objetivo inicial es imitar una política experta, entrenar por refuerzo, o construir primero un dataset para análisis?
 ¿Podemos ejecutar muchas partidas y controlar la semilla?
 ¿El agente verá únicamente la observación actual o también un historial?
@@ -503,7 +542,8 @@ Preguntas que deberíamos resolver en la reunión
 ¿La acción se representa como una sola acción por trabajador más una lista de órdenes de mercado?
 ¿Queremos entrenar primero decisiones de alto nivel, como “invertir en animales”, o directamente acciones de bajo nivel, como mover y regar?
 ¿Necesitamos registrar también acciones inválidas y acciones que son válidas pero no producen ningún efecto?
-Mi propuesta inicial sería trabajar por fases:
+## Mi propuesta inicial sería trabajar por fases:
+
 
 Definir con precisión el formato de una muestra.
 Construir una taxonomía de estrategias y errores.
@@ -516,14 +556,16 @@ Añadir después el control táctico de movimiento, riego, alimentación y almac
 
 
 
-Las reglas
+## Las reglas
+
 
 Qué acciones existen.
 Qué acciones son legales según la posición y el estado.
 Costes, tiempos y requisitos.
 Cómo cambian plantas, animales, mercado y dinero.
 Qué consecuencias tienen los errores.
-A jugar
+## A jugar
+
 
 Observar el estado actual.
 Elegir acciones.
@@ -707,7 +749,8 @@ La primera versión debe ser suficientemente completa, pero no exageradamente co
 
 Propongo estas categorías:
 
-FEATURES
+### Features
+
 │
 ├── A. Tiempo
 ├── B. Economía propia
@@ -721,14 +764,16 @@ FEATURES
 ├── J. Oponente
 ├── K. Posición y operaciones
 └── L. Features derivadas globales
-A. Features brutas de tiempo
+## A. Features brutas de tiempo
+
 
 Fuente:
 
 obs["step"]
 obs["day"]
 obs["hour"]
-Features utilizadas directamente
+### Features utilizadas directamente
+
 
 Feature
 
@@ -779,7 +824,8 @@ obs["hour"]
 
 Bruta
 
-Features generadas
+### Features generadas
+
 
 Feature
 
@@ -897,7 +943,8 @@ Decisión
 
 step, day y hour son redundantes parcialmente, pero al principio los conservamos. Más adelante podemos eliminar los que no aporten.
 
-B. Economía propia
+## B. Economía propia
+
 
 Fuente:
 
@@ -920,7 +967,8 @@ money
 
 my_farm["money"]
 
-Features sintéticas
+### Features sintéticas
+
 
 Feature
 
@@ -1101,7 +1149,8 @@ animales = 2900
 
 Pero son situaciones muy diferentes desde el punto de vista de liquidez.
 
-C. Inventario propio
+## C. Inventario propio
+
 
 Fuente:
 
@@ -1121,7 +1170,8 @@ FERTILIZER
 GOOSE
 COW
 SHEEP
-Features brutas
+### Features brutas
+
 
 Para cada elemento:
 
@@ -1141,7 +1191,8 @@ shed_SHEEP
 En este caso, por ejemplo:
 
 shed_WHEAT = obs["private"]["shed"]["WHEAT"]
-Features sintéticas
+### Features sintéticas
+
 
 Feature
 
@@ -1304,18 +1355,21 @@ shed_capacity = 100
 
 Pero cuidado: las semillas no se guardan en el shed y no deben contar para su capacidad.
 
-D. Semillas propias
+## D. Semillas propias
+
 
 Fuente:
 
 obs["private"]["seeds"]
-Features brutas
+### Features brutas
+
 seed_WHEAT
 seed_CARROT
 seed_TOMATO
 seed_STRAWBERRY
 seed_MELON
-Features sintéticas
+### Features sintéticas
+
 
 Feature
 
@@ -1383,7 +1437,8 @@ seed_profit_expected
 
 porque requiere un modelo más complejo que considere tiempo, agua, fertilizante, precio futuro y espacio.
 
-E. Estado de mi granja
+## E. Estado de mi granja
+
 
 Fuente:
 
@@ -1400,7 +1455,8 @@ PASTURE
 
 Aquí no conviene copiar literalmente los 100 tiles al principio. Vamos a recorrerlos y generar un resumen.
 
-Features sintéticas generales
+### Features sintéticas generales
+
 
 Feature
 
@@ -1525,7 +1581,8 @@ unlocked_quadrant_count
 
 cantidad de cuadrantes desbloqueados
 
-Features brutas o casi brutas de expansión
+### Features brutas o casi brutas de expansión
+
 
 Feature
 
@@ -1572,7 +1629,8 @@ unlocked_SE
 Estas son features binarias generadas desde:
 
 my_farm["unlocked_quadrants"]
-F. Plantas
+## F. Plantas
+
 
 Fuente:
 
@@ -1589,7 +1647,8 @@ CARROT
 TOMATO
 STRAWBERRY
 MELON
-Features sintéticas por tipo de cultivo
+### Features sintéticas por tipo de cultivo
+
 
 Para cada cultivo, por ejemplo WHEAT:
 
@@ -1722,7 +1781,8 @@ carrot
 tomato
 strawberry
 melon
-Features generales de plantas
+### Features generales de plantas
+
 
 Feature
 
@@ -1838,7 +1898,8 @@ old_plants
 
 edad alta
 
-G. Features relacionadas con la producción
+## G. Features relacionadas con la producción
+
 
 Estas son muy importantes porque conectan la granja con la economía.
 
@@ -1955,13 +2016,15 @@ y las reglas de producción del juego.
 Por eso probablemente las implementaremos en una función separada:
 
 calculate_production_features(...)
-H. Animales y estructuras
+## H. Animales y estructuras
+
 
 Fuente:
 
 tile["kind"] == "COOP"
 tile["kind"] == "PASTURE"
-Features por animal
+### Features por animal
+
 
 Para cada tipo:
 
@@ -2083,7 +2146,8 @@ animal_production_value
 
 producción × precio
 
-Features generales
+### Features generales
+
 
 Feature
 
@@ -2190,7 +2254,8 @@ pending_care_bonus_total
 
 suma de bonuses
 
-I. Obligaciones y riesgos
+## I. Obligaciones y riesgos
+
 
 Estas features se calculan sobre plantas y animales.
 
@@ -2364,7 +2429,8 @@ animales no cuidados
 
 Estas features pueden ayudar al agente a aprender que gastar todo el dinero puede ser peligroso si después no puede mantener la granja.
 
-J. Mercado
+## J. Mercado
+
 
 Fuente:
 
@@ -2382,7 +2448,8 @@ EGG
 MILK
 WOOL
 FERTILIZER
-Features brutas
+### Features brutas
+
 
 Para cada producto:
 
@@ -2391,7 +2458,8 @@ market_price_WHEAT
 market_inventory_CARROT
 market_price_CARROT
 ...
-Features sintéticas por producto
+### Features sintéticas por producto
+
 
 Feature
 
@@ -2482,7 +2550,8 @@ precio actual bajo
 
 Repetimos para todos los productos.
 
-Features generales del mercado
+### Features generales del mercado
+
 
 Feature
 
@@ -2569,7 +2638,8 @@ market_price_history
 
 durante la partida.
 
-K. Town y demanda
+## K. Town y demanda
+
 
 Fuente:
 
@@ -2586,7 +2656,8 @@ Ejemplo:
 
 No metemos los strings directamente en el vector.
 
-Features sintéticas de cantidad de shops
+### Features sintéticas de cantidad de shops
+
 bakery_count
 pizza_shop_count
 brunch_spot_count
@@ -2595,7 +2666,8 @@ ice_cream_shop_count
 pet_cafe_count
 smoothie_shop_count
 farmers_market_count
-Features de demanda
+### Features de demanda
+
 
 A partir de los shops:
 
@@ -2616,7 +2688,8 @@ PIZZA_SHOP:
 
 Entonces un Pizza Shop suma demanda a esos productos.
 
-Features adicionales
+### Features adicionales
+
 
 Feature
 
@@ -2688,7 +2761,8 @@ shop_consumption_due_soon
 
 pero eso requiere conocer el momento exacto del ciclo de consumo.
 
-L. Oponente
+## L. Oponente
+
 
 Fuente:
 
@@ -2696,7 +2770,8 @@ opponent_farm = obs["farms"][1 - obs["player"]]
 
 Del oponente tenemos menos información que de nosotros.
 
-Features brutas
+### Features brutas
+
 
 Feature
 
@@ -2749,7 +2824,8 @@ opponent_unlocked_quadrants
 
 cuadrantes
 
-Features sintéticas
+### Features sintéticas
+
 
 Feature
 
@@ -2908,13 +2984,15 @@ opponent_inventory_value_real
 
 Solo podemos hacer estimaciones a partir de su granja visible.
 
-M. Posición y operaciones
+## M. Posición y operaciones
+
 
 Fuente:
 
 my_farm["farmer"]
 my_farm["hands"]
-Features brutas
+### Features brutas
+
 
 Feature
 
@@ -2949,7 +3027,8 @@ hands_count
 
 longitud de hands
 
-Features sintéticas
+### Features sintéticas
+
 
 Feature
 
@@ -3046,7 +3125,8 @@ distance_to_shed
 
 la podemos dejar inicialmente como feature reservada, hasta confirmar dónde está el shed en el mapa.
 
-N. Features que no incluiría todavía
+## N. Features que no incluiría todavía
+
 
 Aunque sean interesantes, las dejaría para una segunda versión.
 
