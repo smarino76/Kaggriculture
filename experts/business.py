@@ -125,3 +125,25 @@ class AgricultureExpert:
     def __init__(self):
         pass
 
+class LivestockExpert:
+    def __init__(self):
+        pass
+
+class InventoryExpert:
+    def __init__(self):
+        pass
+
+class MarketExpert:
+    def __init__(self):
+        pass
+
+class OperationsExpert:
+    def __init__(self):
+        pass
+
+class ProductionExpert:
+    def __init(self):
+        pass
+
+
+
