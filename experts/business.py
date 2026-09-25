@@ -119,3 +119,9 @@ class FinancialExpert:
 
         self.previous_cash = self.cash
         self.previous_shed = self.shed.copy()
+
+
+class AgricultureExpert:
+    def __init__(self):
+        pass
+
