@@ -2782,6 +2782,496 @@ Fuente
 
 
 
+# Estado actual del proyecto — Arquitectura de Business Experts
+
+## 1. Objetivo actual
+
+El objetivo de esta fase es transformar la información contenida en la observación (`obs`) del juego en un conjunto de **features útiles para la toma de decisiones y para el posterior aprendizaje de modelos AI**.
+
+No se utilizarán únicamente los datos brutos del `obs`.
+
+Los datos brutos serán procesados por una serie de **Business Experts**, cada uno especializado en un dominio concreto del negocio agrícola.
+
+Los expertos producirán:
+
+* información extraída directamente de `obs`;
+* información sintética calculada a partir de los datos brutos;
+* indicadores derivados;
+* métricas específicas de su dominio.
+
+El resultado final será un conjunto de features que posteriormente podrá ser utilizado por los modelos de AI/ML.
+
+---
+
+## 2. Principio fundamental de arquitectura
+
+Todos los expertos reciben el estado real del juego a través de `obs`.
+
+El `obs` procedente del Game Engine constituye la **fuente de verdad del estado actual del juego**.
+
+Cada experto debe ser capaz de obtener directamente de `obs` la información fundamental que pertenece a su propio dominio.
+
+Los expertos **pueden consultar otros expertos** cuando necesiten información que pertenece al dominio de otro experto.
+
+Ejemplo:
+
+```text
+AgricultureExpert
+        ↓
+necesita precio del wheat
+        ↓
+MarketExpert
+        ↓
+wheat_price
+```
+
+En este caso:
+
+* `MarketExpert` es responsable de producir `wheat_price`;
+* `AgricultureExpert` puede utilizarlo para producir una feature propia;
+* Agriculture no debe duplicar la lógica responsable del precio de mercado.
+
+### Excepción: FinancialExpert
+
+`FinancialExpert` debe ser completamente autónomo.
+
+No debe depender de ningún otro Expert.
+
+Su única fuente externa es:
+
+```text
+Game Engine → obs → FinancialExpert
+```
+
+Esto garantiza que la información financiera fundamental sea independiente de posibles errores o modificaciones de otros expertos.
+
+Por ejemplo, FinancialExpert no debe obtener `inventory_value` preguntando a `InventoryExpert`.
+
+Debe calcularlo directamente a partir de:
+
+```text
+obs
+ ├── farms
+ ├── private
+ └── market
+```
+
+---
+
+# 3. Business Experts
+
+La arquitectura inicial de `experts/business.py` estará formada por los siguientes expertos:
+
+```text
+Business
+│
+├── FinancialExpert
+├── AgricultureExpert
+├── LivestockExpert
+├── InventoryExpert
+├── MarketExpert
+├── OperationsExpert
+└── ProductionExpert
+```
+
+No se implementará necesariamente todo de una vez.
+
+Primero se definirá claramente la responsabilidad y las features de cada experto.
+
+---
+
+# 4. Mapa de responsabilidades
+
+## FinancialExpert
+
+### Responsabilidad
+
+Representar y calcular la situación económica y financiera del jugador.
+
+### Produce
+
+* cash
+* ingresos
+* gastos
+* cash-flow
+* activos
+* inventario valorizado
+* semillas valorizadas
+* activos productivos
+* valor de la tierra
+* net worth / patrimonio
+* liquidez
+* balance
+* inversiones
+* coste de adquisición
+* rentabilidad económica de inversiones
+* payback
+
+### Dependencias
+
+**Ninguna.**
+
+FinancialExpert obtiene toda la información directamente de `obs`.
+
+```text
+OBS
+ ↓
+FinancialExpert
+ ↓
+Financial Features
+```
+
+---
+
+## AgricultureExpert
+
+### Responsabilidad
+
+Representar el estado y la situación de los cultivos y de la superficie agrícola.
+
+### Produce
+
+* cantidad de cultivos
+* cultivos por tipo
+* edad de los cultivos
+* yield actual
+* yield máximo
+* cultivos regados
+* cultivos no regados
+* cultivos fertilizados
+* cultivos listos
+* cultivos en riesgo
+* cultivos próximos a expirar
+* weeds
+* superficie agrícola disponible
+* superficie ocupada
+* productividad agrícola
+
+Puede utilizar información de otros expertos cuando una feature agrícola necesite información externa.
+
+Ejemplo:
+
+```text
+AgricultureExpert → MarketExpert
+```
+
+para obtener precios de productos.
+
+---
+
+## LivestockExpert
+
+### Responsabilidad
+
+Representar el estado económico y operativo de los animales y sus estructuras.
+
+### Produce
+
+* cantidad de animales
+* animales por especie
+* animales alimentados
+* animales no alimentados
+* animales cuidados
+* animales en riesgo
+* consecutive_unfed
+* pending_care_bonus
+* producción animal disponible
+* producción animal futura
+* fertilizer generado
+* coops/pastures
+* estructuras libres
+* estructuras ocupadas
+
+Puede consultar otros expertos cuando necesite información externa a su dominio.
+
+Ejemplo:
+
+```text
+LivestockExpert → MarketExpert
+```
+
+para obtener el precio del milk, egg o wool.
+
+---
+
+## InventoryExpert
+
+### Responsabilidad
+
+Representar el estado del almacén y de las existencias privadas del jugador.
+
+### Produce
+
+* cantidades almacenadas
+* stock por producto
+* stock de animales
+* espacio utilizado
+* espacio libre
+* capacidad del shed
+* productos disponibles para vender
+* reservas de productos
+* riesgo de overflow
+* reserva de wheat para alimentación
+* stock de fertilizer
+* disponibilidad de productos para determinadas acciones
+
+Puede consultar otros expertos cuando necesite información de otro dominio.
+
+---
+
+## MarketExpert
+
+### Responsabilidad
+
+Representar el estado actual del mercado.
+
+### Produce
+
+* precios actuales
+* market inventory
+* inventory ratio
+* price ratio respecto al precio base
+* price difference
+* scarcity
+* glut
+* presión del mercado
+* productos relativamente caros
+* productos relativamente baratos
+
+En una fase posterior, utilizando histórico:
+
+* price trend
+* volatility
+* momentum
+* evolución de precios
+
+Estas últimas no pueden obtenerse correctamente de una observación aislada y requieren información histórica.
+
+---
+
+## OperationsExpert
+
+### Responsabilidad
+
+Representar la capacidad operativa del jugador.
+
+### Produce
+
+* posición del farmer
+* posiciones de los hands
+* número de hands
+* hires_today
+* capacidad de acciones
+* tareas disponibles
+* workload
+* acciones necesarias
+* desplazamientos
+* distancias
+* coste laboral
+* capacidad operativa restante
+
+Puede consultar Agriculture, Livestock e Inventory para conocer las tareas que deben realizarse.
+
+---
+
+## ProductionExpert
+
+### Responsabilidad
+
+Representar la capacidad productiva actual y futura de la explotación.
+
+Es un experto transversal porque la producción depende de diferentes dominios.
+
+Puede consultar:
+
+```text
+AgricultureExpert
+LivestockExpert
+MarketExpert
+InventoryExpert
+OperationsExpert
+```
+
+### Produce
+
+* producción actual
+* producción disponible inmediatamente
+* unidades producibles
+* producción próxima
+* producción en 24 horas
+* producción en 48 horas
+* producción restante
+* valor esperado de producción
+* producción por producto
+* producción agrícola
+* producción animal
+
+ProductionExpert combina información de distintos dominios, pero no sustituye la responsabilidad de esos expertos.
+
+---
+
+# 5. Regla de responsabilidad
+
+Cada feature debe tener un **único propietario lógico**.
+
+Por ejemplo:
+
+```text
+wheat_price
+    → MarketExpert
+
+cow_count
+    → LivestockExpert
+
+wheat_stock
+    → InventoryExpert
+
+cash
+    → FinancialExpert
+
+farmer_position
+    → OperationsExpert
+
+wheat_production_remaining
+    → AgricultureExpert / ProductionExpert
+```
+
+Otros expertos pueden **utilizar** esas features, pero no deberían duplicar su lógica de cálculo.
+
+Esto evita inconsistencias.
+
+---
+
+# 6. Dependencias entre expertos
+
+Las dependencias están permitidas.
+
+No se pretende crear una arquitectura completamente aislada.
+
+Un experto puede consultar cualquier otro experto cuando necesite información que pertenece al dominio de ese otro experto.
+
+Ejemplo:
+
+```text
+AgricultureExpert
+        ↓
+MarketExpert
+```
+
+```text
+LivestockExpert
+        ↓
+InventoryExpert
+```
+
+```text
+ProductionExpert
+        ↓
+AgricultureExpert
+LivestockExpert
+MarketExpert
+OperationsExpert
+InventoryExpert
+```
+
+Sin embargo:
+
+```text
+FinancialExpert
+        ↓
+      NO
+        ↓
+otros expertos
+```
+
+FinancialExpert permanece independiente.
+
+---
+
+# 7. Concepto de flujo general
+
+La arquitectura conceptual es:
+
+```text
+                    GAME ENGINE
+                         │
+                         │ obs
+                         ↓
+              ┌─────────────────────┐
+              │   BUSINESS EXPERTS  │
+              └─────────────────────┘
+                         │
+       ┌─────────────────┼─────────────────┐
+       ↓                 ↓                 ↓
+ Financial          Agriculture       Livestock
+       │                 │                 │
+       │                 └──────┬──────────┘
+       │                        │
+       │                 Inventory / Market
+       │                        │
+       │                   Operations
+       │                        │
+       │                        ↓
+       │                   Production
+       │                        │
+       └────────────────────────┘
+                         ↓
+                  SYNTHETIC FEATURES
+                         ↓
+                    AI / ML MODELS
+                         ↓
+                      STRATEGY
+                         ↓
+                       ACTION
+```
+
+El diagrama representa posibles relaciones de información y no una cadena obligatoria de ejecución.
+
+---
+
+# 8. Principio de diseño
+
+La arquitectura debe seguir estas reglas:
+
+1. **`obs` es la fuente de verdad.**
+2. Cada experto tiene un dominio claramente definido.
+3. Cada feature tiene un propietario lógico.
+4. Los expertos pueden consultar otros expertos.
+5. Un experto no debe delegar a otro una responsabilidad que pertenece a su propio dominio.
+6. `FinancialExpert` es autónomo y no depende de ningún otro experto.
+7. Las features sintéticas se calculan a partir de datos brutos y/o de información especializada proporcionada por otros expertos.
+8. No se crearán dependencias circulares deliberadamente.
+9. Primero se definirá la responsabilidad de cada experto y sus features.
+10. El código se implementará después de cerrar el mapa de responsabilidades.
+
+---
+
+# 9. Próximo paso
+
+El siguiente paso será definir, experto por experto:
+
+```text
+RAW DATA
+    ↓
+SYNTHETIC FEATURES
+    ↓
+OUTPUT
+```
+
+Comenzaremos por:
+
+```text
+FinancialExpert
+```
+
+y definiremos **exactamente qué información lee directamente de `obs` y qué features financieras calcula**, sin utilizar ningún otro experto.
+
+Después se repetirá el mismo proceso para los demás expertos.
+
+
+
+
+
 opponent_money
 
 	
