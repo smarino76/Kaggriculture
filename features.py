@@ -70,6 +70,9 @@ def extract_time_features(data):
         "is_last_day": 1 if day == 29 else 0,
         "is_first_day": 1 if day == 0 else 0,
     }
+    
+    
+    
 def extract_economy_features(farm):
     """Extrae los datos economicos y operativos brutos de una granja.
 
@@ -78,12 +81,21 @@ def extract_economy_features(farm):
             ``farmer``, ``hands``, ``unlocked_quadrants`` y ``hires_today``.
 
     Returns:
-        dict: Diccionario con los valores brutos de la granja:
+                dict: Diccionario con los valores brutos y sinteticos de la granja:
             - ``money`` (float): Dinero disponible del jugador.
             - ``farmer`` (list): Posicion ``[x, y]`` del granjero principal.
             - ``hands`` (list): Posiciones de los trabajadores contratados.
             - ``unlocked_quadrants`` (list): Cuadrantes de terreno comprados.
             - ``hires_today`` (int): Trabajadores contratados durante el dia.
+                        - ``farmer_x`` (int): Coordenada horizontal del granjero principal.
+                        - ``farmer_y`` (int): Coordenada vertical del granjero principal.
+                        - ``hands_count`` (int): Cantidad de trabajadores contratados.
+                        - ``unlocked_quadrant_count`` (int): Cantidad de cuadrantes
+                            desbloqueados.
+                        - ``has_hands`` (int): 1 si hay al menos un trabajador contratado;
+                            en caso contrario, 0.
+                        - ``has_full_land`` (int): 1 si los cuatro cuadrantes estan
+                            desbloqueados; en caso contrario, 0.
     """
     money = farm["money"]
     farmer = farm["farmer"]
@@ -110,3 +122,18 @@ def extract_economy_features(farm):
         "has_hands": int(hands_count > 0),
         "has_full_land": int(unlocked_quadrant_count == 4),
     }
+    
+    
+    def extract_inventory_features(data):
+        shed = data.get("private", {}).get("shed", {})
+        inventories = data.get("private", {}).get("inventories", {})
+        seeds = data.get("private", {}).get("seeds", {})
+        
+        player = data["player"]
+        my_farm = data["farms"][player]
+        hands = my_farm["hands"]
+        hands_count = len(hands)
+        inventory_farmer = inventories[0]
+
+        
+        

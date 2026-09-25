@@ -1,17 +1,23 @@
-def agent(obs):
+from experts.business import FinancialExpert
 
-    print(f"OBS: {obs}")
+def agent(obs):
+    #print(f"Observacion : {obs}")
     player = obs["player"]
     me = obs["farms"][player]
     private = obs["private"]
     fx, fy = me["farmer"]
     tile = me["tiles"][fy][fx]
 
+
+    financial_expert = FinancialExpert(player=player)
+
+    financial_expert.process_observation(obs)
+    
     market = []
 
     # Buy a wheat seed if we have none and have enough money
     if private["seeds"].get("WHEAT", 0) == 0 and me["money"] >= 10:
-        market.append(["BUY_SEED", "WHEAT", 1])
+        market.append(["BUY_SEED", "WHEAT", 10])
 
     # Sell any wheat sitting in the shed
     wheat_in_shed = private["shed"].get("WHEAT", 0)
