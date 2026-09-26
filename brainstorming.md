@@ -2782,951 +2782,905 @@ Fuente
 
 
 
-# Estado actual del proyecto — Arquitectura de Business Experts
+# Kaggriculture — Business Experts Brainstorming
 
-## 1. Objetivo actual
+## 1. Objective
 
-El objetivo de esta fase es transformar la información contenida en la observación (`obs`) del juego en un conjunto de **features útiles para la toma de decisiones y para el posterior aprendizaje de modelos AI**.
+The objective is to transform the raw Kaggriculture game observation (`obs`) into meaningful business-domain features that can later be used by decision-making and Machine Learning models.
 
-No se utilizarán únicamente los datos brutos del `obs`.
+The architecture is based on a set of specialized **Business Experts**.
 
-Los datos brutos serán procesados por una serie de **Business Experts**, cada uno especializado en un dominio concreto del negocio agrícola.
-
-Los expertos producirán:
-
-* información extraída directamente de `obs`;
-* información sintética calculada a partir de los datos brutos;
-* indicadores derivados;
-* métricas específicas de su dominio.
-
-El resultado final será un conjunto de features que posteriormente podrá ser utilizado por los modelos de AI/ML.
+Each Expert is responsible for one specific business domain.
 
 ---
 
-## 2. Principio fundamental de arquitectura
-
-Todos los expertos reciben el estado real del juego a través de `obs`.
-
-El `obs` procedente del Game Engine constituye la **fuente de verdad del estado actual del juego**.
-
-Cada experto debe ser capaz de obtener directamente de `obs` la información fundamental que pertenece a su propio dominio.
-
-Los expertos **pueden consultar otros expertos** cuando necesiten información que pertenece al dominio de otro experto.
-
-Ejemplo:
+# 2. Architecture
 
 ```text
-AgricultureExpert
-        ↓
-necesita precio del wheat
-        ↓
-MarketExpert
-        ↓
-wheat_price
+                              OBS
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+          ▼                    ▼                    ▼
+  FinancialExpert     AgricultureExpert     LivestockExpert
+          │                    │                    │
+          ▼                    ▼                    ▼
+  InventoryExpert       MarketExpert       OperationsExpert
+          │                    │                    │
+          └────────────────────┼────────────────────┘
+                               ▼
+                       ProductionExpert
+                               │
+                               ▼
+                     Decision / ML Layer
 ```
 
-En este caso:
+## Architectural principles
 
-* `MarketExpert` es responsable de producir `wheat_price`;
-* `AgricultureExpert` puede utilizarlo para producir una feature propia;
-* Agriculture no debe duplicar la lógica responsable del precio de mercado.
-
-### Excepción: FinancialExpert
-
-`FinancialExpert` debe ser completamente autónomo.
-
-No debe depender de ningún otro Expert.
-
-Su única fuente externa es:
-
-```text
-Game Engine → obs → FinancialExpert
-```
-
-Esto garantiza que la información financiera fundamental sea independiente de posibles errores o modificaciones de otros expertos.
-
-Por ejemplo, FinancialExpert no debe obtener `inventory_value` preguntando a `InventoryExpert`.
-
-Debe calcularlo directamente a partir de:
-
-```text
-obs
- ├── farms
- ├── private
- └── market
-```
+* `obs` is the **source of truth**.
+* Every feature has one logical owner.
+* Every Expert has a clearly defined business responsibility.
+* Experts may **query other Experts** when they need information from another domain.
+* An Expert must not modify another Expert's internal state.
+* Each Expert exposes its information through a public interface.
+* `get_features()` exposes the complete public feature set.
+* Individual `get_*()` methods expose specific values.
+* Internal implementation details remain encapsulated inside each Expert.
 
 ---
 
 # 3. Business Experts
 
-La arquitectura inicial de `experts/business.py` estará formada por los siguientes expertos:
+The current architecture contains the following Experts:
 
-```text
-Business
-│
-├── FinancialExpert
-├── AgricultureExpert
-├── LivestockExpert
-├── InventoryExpert
-├── MarketExpert
-├── OperationsExpert
-└── ProductionExpert
-```
-
-No se implementará necesariamente todo de una vez.
-
-Primero se definirá claramente la responsabilidad y las features de cada experto.
+1. `FinancialExpert`
+2. `AgricultureExpert`
+3. `LivestockExpert`
+4. `InventoryExpert`
+5. `MarketExpert`
+6. `OperationsExpert`
+7. `ProductionExpert`
 
 ---
 
-# 4. Mapa de responsabilidades
+# 4. FinancialExpert
 
-## FinancialExpert
+## Status
 
-### Responsabilidad
+**Implemented**
 
-Representar y calcular la situación económica y financiera del jugador.
+## Responsibility
 
-### Produce
+`FinancialExpert` represents the economic and financial situation of one player.
+
+It is responsible for:
 
 * cash
-* ingresos
-* gastos
-* cash-flow
-* activos
-* inventario valorizado
-* semillas valorizadas
-* activos productivos
-* valor de la tierra
-* net worth / patrimonio
-* liquidez
-* balance
-* inversiones
-* coste de adquisición
-* rentabilidad económica de inversiones
+* income
+* expenses
+* cash flow
+* inventory valuation
+* seed valuation
+* animal asset valuation
+* land acquisition value
+* assets
+* net worth
+* liquidity
+* investments
+* acquisition costs
+* aggregate investment return
 * payback
 
-### Dependencias
+---
 
-**Ninguna.**
+## 4.1 Autonomy
 
-FinancialExpert obtiene toda la información directamente de `obs`.
+`FinancialExpert` is deliberately **completely autonomous**.
+
+It does not depend on any other Business Expert.
 
 ```text
-OBS
- ↓
-FinancialExpert
- ↓
-Financial Features
+                    OBS
+                     │
+                     ▼
+             FinancialExpert
+```
+
+It obtains its information directly from:
+
+```text
+obs
+├── farms[player]
+├── private
+└── market
+```
+
+This is intentional.
+
+Financial information must not depend on another Expert's interpretation of the same raw data.
+
+---
+
+# 4.2 Financial Features
+
+## Time
+
+* `step`
+* `day`
+* `hour`
+* `days_remaining`
+* `steps_remaining`
+* `season_progress`
+* `is_last_day`
+* `is_last_week`
+* `is_day_start`
+* `is_day_end`
+
+## Cash and financial flows
+
+* `cash`
+* `income`
+* `expenses`
+* `cash_flow`
+
+## Economic valuation
+
+* `inventory_value`
+* `seed_value`
+* `animal_asset_value`
+* `land_value`
+
+## Financial position
+
+* `assets`
+* `net_worth`
+* `balance`
+* `liquidity_ratio`
+* `money_per_day_remaining`
+
+## Animals as financial assets
+
+* `animals`
+* `current_animals`
+* `animal_asset_value`
+
+`current_animals` and `animals` are intentionally different.
+
+### `current_animals`
+
+Auxiliary internal representation used to reconstruct the actual animal population from the observation.
+
+Animals may exist:
+
+* in the shed
+* on `COOP`
+* on `PASTURE`
+
+### `animals`
+
+FinancialExpert's exposed representation of the current animal population.
+
+---
+
+# 4.3 Land valuation
+
+Land is valued using acquisition cost.
+
+The initial `NW` quadrant belongs to the initial farm and therefore has no additional acquisition cost.
+
+Additional quadrants are acquired progressively:
+
+| Unlocked quadrants         | Acquisition value |
+| -------------------------- | ----------------: |
+| `["NW"]`                   |              `$0` |
+| `["NW", "NE"]`             |          `$1,000` |
+| `["NW", "NE", "SW"]`       |          `$3,000` |
+| `["NW", "NE", "SW", "SE"]` |          `$7,000` |
+
+Therefore:
+
+```text
+NW
+└── $0
+
+NW + 1 additional quadrant
+└── $1,000
+
+NW + 2 additional quadrants
+└── $3,000
+
+NW + 3 additional quadrants
+└── $7,000
+```
+
+### Important
+
+`land_value` represents **historical/acquisition value**.
+
+It does not represent:
+
+* predicted resale value
+* speculative market value
+* future land appreciation
+
+No such value is invented when it is not available from the game state.
+
+---
+
+# 4.4 Net worth
+
+Currently there are no explicit liabilities modeled.
+
+Therefore:
+
+```text
+assets =
+    inventory_value
+    + seed_value
+    + animal_asset_value
+    + land_value
+```
+
+and:
+
+```text
+net_worth =
+    cash
+    + assets
+```
+
+Therefore, currently:
+
+```text
+balance = net_worth
 ```
 
 ---
 
-## AgricultureExpert
+# 4.5 Liquidity
 
-### Responsabilidad
+Liquidity is represented by:
 
-Representar el estado y la situación de los cultivos y de la superficie agrícola.
+```text
+liquidity_ratio =
+    cash / net_worth
+```
 
-### Produce
+It indicates what proportion of the player's total financial value is immediately available as cash.
 
-* cantidad de cultivos
-* cultivos por tipo
-* edad de los cultivos
-* yield actual
-* yield máximo
-* cultivos regados
-* cultivos no regados
-* cultivos fertilizados
-* cultivos listos
-* cultivos en riesgo
-* cultivos próximos a expirar
+Another planning feature is:
+
+```text
+money_per_day_remaining =
+    cash / days_remaining
+```
+
+This is a planning indicator and not an accounting measure.
+
+---
+
+# 4.6 Transactions
+
+A fundamental distinction is made between **cash movement** and **economic result**.
+
+For example:
+
+```text
+BUY_ANIMAL COW
+```
+
+causes:
+
+```text
+cash              ↓
+animal asset      ↑
+```
+
+Therefore the reduction in cash must **not** automatically be interpreted as a financial loss.
+
+When the action responsible for the state is available:
+
+```python
+process_observation(obs, action)
+```
+
+FinancialExpert can classify transactions such as:
+
+* `BUY_SEED`
+* `BUY_PRODUCT`
+* `BUY_ANIMAL`
+* `SELL`
+* `HIRE`
+* `BUY_LAND`
+* `BUILD_COOP`
+* `BUILD_PASTURE`
+
+---
+
+# 4.7 Observation without action
+
+The following remains valid:
+
+```python
+financial.process_observation(obs)
+```
+
+The current financial state can still be calculated:
+
+* cash
+* assets
+* inventory value
+* seed value
+* animal value
+* land value
+* net worth
+* liquidity
+* balance
+
+However, `income` and `expenses` cannot always be reconstructed reliably from an isolated observation.
+
+Therefore, when no action is available, the observed cash variation can be used for cash-flow analysis:
+
+```text
+cash_flow =
+    current_cash - previous_cash
+```
+
+but the system deliberately avoids inventing an income/expense classification.
+
+---
+
+# 4.8 Investment return
+
+`investment_return` currently represents an **aggregate financial return**.
+
+It is deliberately **not individual ROI**.
+
+The current implementation does not attempt to calculate:
+
+```text
+ROI of one cow
+ROI of one sheep
+ROI of one goose
+ROI of one pasture
+ROI of one coop
+ROI of one land quadrant
+```
+
+The reason is attribution.
+
+For example, if the farm sells milk, the available information does not necessarily tell us exactly which:
+
+* cow
+* pasture
+* land
+* structure
+
+generated the corresponding income.
+
+Individual ROI would therefore require an additional attribution layer.
+
+This is intentionally reserved for a **second level of financial analysis**.
+
+---
+
+# 4.9 Payback
+
+The current payback calculation is aggregate.
+
+Conceptually:
+
+```text
+payback =
+    acquisition_cost / investment_return
+```
+
+when the return is positive.
+
+It does not represent the individual payback of a specific asset.
+
+Individual payback will require the same asset-to-income attribution mechanism described above.
+
+---
+
+# 4.10 FinancialExpert public interface
+
+Every Business Expert follows the same general interface.
+
+### Update
+
+```python
+financial.process_observation(obs, action)
+```
+
+### Complete feature set
+
+```python
+financial.get_features()
+```
+
+### Individual queries
+
+```python
+financial.get_cash()
+financial.get_income()
+financial.get_expenses()
+financial.get_cash_flow()
+
+financial.get_inventory_value()
+financial.get_seed_value()
+
+financial.get_animals()
+financial.get_animal_asset_value()
+financial.get_land_value()
+
+financial.get_assets()
+financial.get_net_worth()
+financial.get_balance()
+
+financial.get_liquidity_ratio()
+financial.get_money_per_day_remaining()
+
+financial.get_investments()
+financial.get_acquisition_cost()
+financial.get_investment_return()
+financial.get_payback()
+
+financial.get_last_transaction()
+```
+
+### Time queries
+
+```python
+financial.get_step()
+financial.get_day()
+financial.get_hour()
+
+financial.get_days_remaining()
+financial.get_steps_remaining()
+financial.get_season_progress()
+
+financial.is_day_start_now()
+financial.is_day_end_now()
+financial.is_last_day_now()
+financial.is_last_week_now()
+```
+
+---
+
+# 5. AgricultureExpert
+
+## Status
+
+**Planned**
+
+## Responsibility
+
+AgricultureExpert owns everything related to agricultural production.
+
+## Planned features
+
+### Crop state
+
+* crop type
+* planted day
+* crop age
+* watered today
+* consecutive unwatered
+* fertilized
+* ready
+* risk
+* expiry
 * weeds
-* superficie agrícola disponible
-* superficie ocupada
-* productividad agrícola
 
-Puede utilizar información de otros expertos cuando una feature agrícola necesite información externa.
+### Agricultural capacity
 
-Ejemplo:
+* agricultural surface
+* cultivated surface
+* available agricultural surface
+* agricultural productivity
+
+### Production
+
+* expected crop production
+* production remaining
+* crop production state
+
+---
+
+## Dependencies
+
+AgricultureExpert may query FinancialExpert when financial context is needed.
+
+Example:
 
 ```text
-AgricultureExpert → MarketExpert
+AgricultureExpert
+        │
+        └──→ FinancialExpert
+               ├── cash
+               ├── liquidity
+               └── net_worth
 ```
 
-para obtener precios de productos.
+AgricultureExpert does not calculate those financial features itself.
 
 ---
 
-## LivestockExpert
+# 6. LivestockExpert
 
-### Responsabilidad
+## Status
 
-Representar el estado económico y operativo de los animales y sus estructuras.
+**Planned**
 
-### Produce
+## Responsibility
 
-* cantidad de animales
-* animales por especie
-* animales alimentados
-* animales no alimentados
-* animales cuidados
-* animales en riesgo
-* consecutive_unfed
-* pending_care_bonus
-* producción animal disponible
-* producción animal futura
-* fertilizer generado
-* coops/pastures
-* estructuras libres
-* estructuras ocupadas
+LivestockExpert owns the operational and productive state of animals.
 
-Puede consultar otros expertos cuando necesite información externa a su dominio.
+## Planned features
 
-Ejemplo:
+* animal count
+* animals by species
+* fed animals
+* unfed animals
+* cared animals
+* uncared animals
+* consecutive unfed
+* pending care bonus
+* animal production
+* fertilizer production
+* animal risk
+* coop state
+* pasture state
+
+---
+
+## Architectural distinction
+
+FinancialExpert and LivestockExpert can both expose animal-related information without duplication of responsibility.
 
 ```text
-LivestockExpert → MarketExpert
+LivestockExpert
+    └── What is the animal's productive/operational state?
+
+FinancialExpert
+    └── What is the economic value of the animal?
 ```
 
-para obtener el precio del milk, egg o wool.
+---
+
+# 7. InventoryExpert
+
+## Status
+
+**Planned**
+
+## Responsibility
+
+InventoryExpert manages the physical inventory state.
+
+## Planned features
+
+* shed contents
+* stock by product
+* inventory capacity
+* free capacity
+* fertilizer stock
+* feed stock
+* seed stock
+* reserves
+* sellable products
+* inventory pressure
 
 ---
 
-## InventoryExpert
+## Architectural distinction
 
-### Responsabilidad
+```text
+InventoryExpert
+    └── What do I have?
 
-Representar el estado del almacén y de las existencias privadas del jugador.
+FinancialExpert
+    └── What is it worth?
+```
 
-### Produce
-
-* cantidades almacenadas
-* stock por producto
-* stock de animales
-* espacio utilizado
-* espacio libre
-* capacidad del shed
-* productos disponibles para vender
-* reservas de productos
-* riesgo de overflow
-* reserva de wheat para alimentación
-* stock de fertilizer
-* disponibilidad de productos para determinadas acciones
-
-Puede consultar otros expertos cuando necesite información de otro dominio.
+InventoryExpert therefore owns the physical inventory state, while FinancialExpert only consumes the necessary inventory information for economic valuation.
 
 ---
 
-## MarketExpert
+# 8. MarketExpert
 
-### Responsabilidad
+## Status
 
-Representar el estado actual del mercado.
+**Planned**
 
-### Produce
+## Responsibility
 
-* precios actuales
+MarketExpert analyzes market conditions.
+
+## Current/planned features
+
+* current prices
 * market inventory
-* inventory ratio
-* price ratio respecto al precio base
-* price difference
+* price ratios
 * scarcity
 * glut
-* presión del mercado
-* productos relativamente caros
-* productos relativamente baratos
+* market pressure
 
-En una fase posterior, utilizando histórico:
+## Future features
+
+The following require historical observations:
 
 * price trend
-* volatility
-* momentum
-* evolución de precios
+* price volatility
+* price momentum
+* future price prediction
 
-Estas últimas no pueden obtenerse correctamente de una observación aislada y requieren información histórica.
+These are not currently part of FinancialExpert.
 
 ---
 
-## OperationsExpert
+# 9. OperationsExpert
 
-### Responsabilidad
+## Status
 
-Representar la capacidad operativa del jugador.
+**Planned**
 
-### Produce
+## Responsibility
 
-* posición del farmer
-* posiciones de los hands
-* número de hands
-* hires_today
-* capacidad de acciones
-* tareas disponibles
+OperationsExpert represents operational capacity, movement and workforce utilization.
+
+## Planned features
+
+### Farmer
+
+* farmer position
+* farmer x
+* farmer y
+
+### Hands
+
+* hands count
+* hires today
+* has hands
+* hands per task
+
+### Tasks
+
+* tasks
+* tasks remaining
 * workload
-* acciones necesarias
-* desplazamientos
-* distancias
-* coste laboral
-* capacidad operativa restante
+* estimated actions needed
 
-Puede consultar Agriculture, Livestock e Inventory para conocer las tareas que deben realizarse.
+### Distances
+
+* distance to shed
+* nearest plant
+* nearest animal
+* nearest weed
+* nearest empty tile
+
+`distance_to_shed` remains pending confirmation of the actual shed position in the game state.
 
 ---
 
-## ProductionExpert
+# 10. ProductionExpert
 
-### Responsabilidad
+## Status
 
-Representar la capacidad productiva actual y futura de la explotación.
+**Planned**
 
-Es un experto transversal porque la producción depende de diferentes dominios.
+## Responsibility
 
-Puede consultar:
+ProductionExpert combines production information from the specialized Experts.
+
+Its purpose is to answer:
+
+> How much can the farm produce now and in the near future?
+
+## Planned features
+
+* current production
+* immediate production
+* future production
+* production in 24h
+* production in 48h
+* remaining production
+* expected production
+* expected production value
+* crop production
+* animal production
+
+ProductionExpert may query:
 
 ```text
 AgricultureExpert
 LivestockExpert
 MarketExpert
-InventoryExpert
-OperationsExpert
-```
-
-### Produce
-
-* producción actual
-* producción disponible inmediatamente
-* unidades producibles
-* producción próxima
-* producción en 24 horas
-* producción en 48 horas
-* producción restante
-* valor esperado de producción
-* producción por producto
-* producción agrícola
-* producción animal
-
-ProductionExpert combina información de distintos dominios, pero no sustituye la responsabilidad de esos expertos.
-
----
-
-# 5. Regla de responsabilidad
-
-Cada feature debe tener un **único propietario lógico**.
-
-Por ejemplo:
-
-```text
-wheat_price
-    → MarketExpert
-
-cow_count
-    → LivestockExpert
-
-wheat_stock
-    → InventoryExpert
-
-cash
-    → FinancialExpert
-
-farmer_position
-    → OperationsExpert
-
-wheat_production_remaining
-    → AgricultureExpert / ProductionExpert
-```
-
-Otros expertos pueden **utilizar** esas features, pero no deberían duplicar su lógica de cálculo.
-
-Esto evita inconsistencias.
-
----
-
-# 6. Dependencias entre expertos
-
-Las dependencias están permitidas.
-
-No se pretende crear una arquitectura completamente aislada.
-
-Un experto puede consultar cualquier otro experto cuando necesite información que pertenece al dominio de ese otro experto.
-
-Ejemplo:
-
-```text
-AgricultureExpert
-        ↓
-MarketExpert
-```
-
-```text
-LivestockExpert
-        ↓
-InventoryExpert
-```
-
-```text
-ProductionExpert
-        ↓
-AgricultureExpert
-LivestockExpert
-MarketExpert
-OperationsExpert
-InventoryExpert
-```
-
-Sin embargo:
-
-```text
-FinancialExpert
-        ↓
-      NO
-        ↓
-otros expertos
-```
-
-FinancialExpert permanece independiente.
-
----
-
-# 7. Concepto de flujo general
-
-La arquitectura conceptual es:
-
-```text
-                    GAME ENGINE
-                         │
-                         │ obs
-                         ↓
-              ┌─────────────────────┐
-              │   BUSINESS EXPERTS  │
-              └─────────────────────┘
-                         │
-       ┌─────────────────┼─────────────────┐
-       ↓                 ↓                 ↓
- Financial          Agriculture       Livestock
-       │                 │                 │
-       │                 └──────┬──────────┘
-       │                        │
-       │                 Inventory / Market
-       │                        │
-       │                   Operations
-       │                        │
-       │                        ↓
-       │                   Production
-       │                        │
-       └────────────────────────┘
-                         ↓
-                  SYNTHETIC FEATURES
-                         ↓
-                    AI / ML MODELS
-                         ↓
-                      STRATEGY
-                         ↓
-                       ACTION
-```
-
-El diagrama representa posibles relaciones de información y no una cadena obligatoria de ejecución.
-
----
-
-# 8. Principio de diseño
-
-La arquitectura debe seguir estas reglas:
-
-1. **`obs` es la fuente de verdad.**
-2. Cada experto tiene un dominio claramente definido.
-3. Cada feature tiene un propietario lógico.
-4. Los expertos pueden consultar otros expertos.
-5. Un experto no debe delegar a otro una responsabilidad que pertenece a su propio dominio.
-6. `FinancialExpert` es autónomo y no depende de ningún otro experto.
-7. Las features sintéticas se calculan a partir de datos brutos y/o de información especializada proporcionada por otros expertos.
-8. No se crearán dependencias circulares deliberadamente.
-9. Primero se definirá la responsabilidad de cada experto y sus features.
-10. El código se implementará después de cerrar el mapa de responsabilidades.
-
----
-
-# 9. Próximo paso
-
-El siguiente paso será definir, experto por experto:
-
-```text
-RAW DATA
-    ↓
-SYNTHETIC FEATURES
-    ↓
-OUTPUT
-```
-
-Comenzaremos por:
-
-```text
 FinancialExpert
 ```
 
-y definiremos **exactamente qué información lee directamente de `obs` y qué features financieras calcula**, sin utilizar ningún otro experto.
+but it must not duplicate their internal responsibilities.
 
-Después se repetirá el mismo proceso para los demás expertos.
+---
 
+# 11. Features intentionally postponed
 
+The following features are deliberately excluded from the first deterministic layer.
 
+They require historical data, simulation, attribution or predictive models.
 
+## Market prediction
 
-opponent_money
-
-	
-
-opponent_farm["money"]
-
-
-
-
-opponent_farmer_x
-
-	
-
-posición
-
-
-
-
-opponent_farmer_y
-
-	
-
-posición
-
-
-
-
-opponent_hires_today
-
-	
-
-hires_today
-
-
-
-
-opponent_unlocked_quadrants
-
-	
-
-cuadrantes
-
-### Features sintéticas
-
-
-Feature
-
-	
-
-Datos necesarios
-
-
-
-
-opponent_locked_tiles
-
-	
-
-mapa rival
-
-
-
-
-opponent_empty_tiles
-
-	
-
-mapa rival
-
-
-
-
-opponent_weed_tiles
-
-	
-
-mapa rival
-
-
-
-
-opponent_plant_count
-
-	
-
-mapa rival
-
-
-
-
-opponent_animal_count
-
-	
-
-mapa rival
-
-
-
-
-opponent_coop_count
-
-	
-
-mapa rival
-
-
-
-
-opponent_pasture_count
-
-	
-
-mapa rival
-
-
-
-
-opponent_productive_tiles
-
-	
-
-plantas + animales
-
-
-
-
-opponent_land_value
-
-	
-
-cuadrantes
-
-
-
-
-opponent_estimated_asset_value
-
-	
-
-plantas + animales + tierra
-
-
-
-
-opponent_estimated_production
-
-	
-
-estado de cultivos/animales
-
-
-
-
-money_difference
-
-	
-
-nuestro dinero − dinero rival
-
-
-
-
-land_difference
-
-	
-
-nuestra tierra − tierra rival
-
-
-
-
-production_difference
-
-	
-
-nuestra producción − producción rival
-
-
-
-
-estimated_patrimonio_difference
-
-	
-
-patrimonio estimado propio − rival
-
-Lo que NO podemos conocer del rival
-
-No tenemos:
-
-opponent_shed
-opponent_seeds
-opponent_inventories
-
-Por tanto no podemos calcular directamente:
-
-opponent_liquidity_real
-opponent_feed_reserve_real
-opponent_inventory_value_real
-
-Solo podemos hacer estimaciones a partir de su granja visible.
-
-## M. Posición y operaciones
-
-
-Fuente:
-
-my_farm["farmer"]
-my_farm["hands"]
-### Features brutas
-
-
-Feature
-
-	
-
-Fuente
-
-
-
-
-farmer_x
-
-	
-
-posición del farmer
-
-
-
-
-farmer_y
-
-	
-
-posición del farmer
-
-
-
-
-hands_count
-
-	
-
-longitud de hands
-
-### Features sintéticas
-
-
-Feature
-
-	
-
-Datos necesarios
-
-
-
-
-distance_to_shed
-
-	
-
-posición del farmer
-
-
-
-
-distance_to_nearest_plant
-
-	
-
-posición + mapa
-
-
-
-
-distance_to_nearest_animal
-
-	
-
-posición + mapa
-
-
-
-
-distance_to_nearest_weed
-
-	
-
-posición + mapa
-
-
-
-
-distance_to_nearest_empty_tile
-
-	
-
-posición + mapa
-
-
-
-
-tasks_remaining
-
-	
-
-plantas/animales no atendidos
-
-
-
-
-estimated_actions_needed
-
-	
-
-tareas + distancias
-
-
-
-
-has_hands
-
-	
-
-hands_count
-
-
-
-
-hands_per_task
-
-	
-
-hands + tareas
-
-Nota
-
-Todavía no conocemos con exactitud la posición del shed en el sistema de coordenadas. Por eso:
-
-distance_to_shed
-
-la podemos dejar inicialmente como feature reservada, hasta confirmar dónde está el shed en el mapa.
-
-## N. Features que no incluiría todavía
-
-
-Aunque sean interesantes, las dejaría para una segunda versión.
-
-No incluiría inicialmente
+```text
 price_trend
 price_volatility
 future_price_prediction
+```
+
+## Optimization
+
+```text
 exact_profit_per_crop
 optimal_crop
 optimal_action
 opportunity_cost
+```
+
+## Opponent prediction
+
+```text
 opponent_real_patrimony
 opponent_future_strategy
+```
 
-Porque requieren:
+These belong to later analytical/ML layers.
 
-historial de observaciones;
+---
 
-simulación;
+# 12. Communication between Experts
 
-modelos predictivos;
+The standard interface is:
 
-conocimiento de acciones futuras;
+```python
+expert.process_observation(obs)
+```
 
-o una política más avanzada.
+to update the Expert's internal state.
 
-Primero necesitamos una representación correcta del estado actual.
+And:
 
-2. Resumen de las funciones que vamos a escribir
+```python
+expert.get_features()
+```
 
-No las codificamos todavía, pero esta sería la división lógica.
+to expose its public features.
 
-extract_time_features(obs)
+Individual values are available through:
 
-Devuelve:
+```python
+expert.get_xxx()
+```
 
-step
-day
-hour
-days_remaining
-steps_remaining
-season_progress
-...
-extract_economy_features(obs)
+---
 
-Devuelve:
+# 13. Expert encapsulation
 
-money
-land_value
-animal_asset_value
-inventory_value
-patrimonio
-liquidity_ratio
-...
-extract_inventory_features(obs)
+An Expert can query another Expert:
 
-Devuelve:
+```text
+AgricultureExpert
+       │
+       │ query
+       ▼
+FinancialExpert
+       │
+       └── returns financial information
+```
 
-shed_WHEAT
-shed_CARROT
-...
-inventory_total_units
-inventory_space_free
-...
-extract_seed_features(obs)
+But it must not modify the other Expert:
 
-Devuelve:
+```python
+# Correct
+cash = financial.get_cash()
 
-seed_WHEAT
-seed_CARROT
-...
-total_seeds
-...
-extract_farm_features(farm, day)
+# Incorrect
+financial.cash = 500
+```
 
-Devuelve:
+The second pattern violates the architecture.
 
-locked_tiles
-empty_tiles
-weed_tiles
-plant_tiles
-total_plants
-total_animals
-...
-extract_crop_features(farm, day)
+---
 
-Devuelve:
+# 14. Feature ownership
 
-wheat_count
-wheat_ready_count
-wheat_at_risk_count
-...
-tomato_count
-...
-extract_animal_features(farm, day)
+Each feature should have one logical owner.
 
-Devuelve:
+For example:
 
-goose_count
-cow_count
-sheep_count
-animals_at_risk
-...
-calculate_production_features(farm, day, market)
+| Feature               | Owner             |
+| --------------------- | ----------------- |
+| `cash`                | FinancialExpert   |
+| `net_worth`           | FinancialExpert   |
+| `liquidity_ratio`     | FinancialExpert   |
+| `animal_asset_value`  | FinancialExpert   |
+| `inventory_value`     | FinancialExpert   |
+| `crop_state`          | AgricultureExpert |
+| `watered_today`       | AgricultureExpert |
+| `animal_state`        | LivestockExpert   |
+| `animal_production`   | LivestockExpert   |
+| `shed_stock`          | InventoryExpert   |
+| `inventory_capacity`  | InventoryExpert   |
+| `market_price`        | MarketExpert      |
+| `price_trend`         | MarketExpert      |
+| `farmer_position`     | OperationsExpert  |
+| `hands_count`         | OperationsExpert  |
+| `expected_production` | ProductionExpert  |
 
-Devuelve:
+Another Expert may consume a feature, but it does not become its owner.
 
-production_ready_now
-production_value_next_24h
-production_value_next_48h
-expected_production_value
-.
+---
 
+# 15. Current implementation status
+
+```text
+┌──────────────────────┬──────────────┐
+│ Expert               │ Status       │
+├──────────────────────┼──────────────┤
+│ FinancialExpert      │ DONE         │
+│ AgricultureExpert    │ NEXT         │
+│ LivestockExpert      │ PLANNED      │
+│ InventoryExpert      │ PLANNED      │
+│ MarketExpert         │ PLANNED      │
+│ OperationsExpert     │ PLANNED      │
+│ ProductionExpert     │ PLANNED      │
+└──────────────────────┴──────────────┘
+```
+
+The next implementation step is:
+
+```text
+AgricultureExpert
+```
+
+using the same standard interface:
+
+```python
+process_observation(obs, ...)
+get_features()
+get_xxx()
+```
+
+---
+
+# 16. Long-term architecture
+
+The Business Experts form the deterministic domain layer.
+
+```text
+                    RAW OBSERVATION
+                          │
+                          ▼
+                ┌───────────────────┐
+                │ Business Experts  │
+                └─────────┬─────────┘
+                          │
+                          ▼
+                Synthetic Features
+                          │
+                          ▼
+                 Decision / ML Layer
+                          │
+                          ▼
+                       ACTION
+```
+
+The objective is therefore **not to create one giant model that learns everything directly from `obs`**.
+
+Instead:
+
+1. Raw game data is interpreted by specialized domain Experts.
+2. Experts generate meaningful synthetic features.
+3. Those features provide a structured representation of the game state.
+4. ML models can later learn decisions from that representation.
+5. Predictive and optimization layers are added only where deterministic business logic is insufficient.
