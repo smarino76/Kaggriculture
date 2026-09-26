@@ -1,4 +1,4 @@
-from experts.business import FinancialExpert
+from experts.business import FinancialExpert, AgricultureExpert
 
 def agent(obs):
     player = obs["player"]
@@ -9,8 +9,10 @@ def agent(obs):
 
 
     financial_expert = FinancialExpert(player=player)
-
+    agriculture_expert = AgricultureExpert(player=0)
+    
     financial_expert.process_observation(obs)
+    agriculture_expert.process_observation(obs)
     
     market = []
 

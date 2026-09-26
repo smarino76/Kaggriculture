@@ -1665,9 +1665,831 @@ class FinancialExpert:
 
 
 
+
 class AgricultureExpert:
-    def __init__(self):
-        pass
+    """
+    AgricultureExpert
+    =================
+
+    Experto determinista responsable del análisis del estado agrícola
+    de la granja del jugador en Kaggriculture.
+
+    Responsabilidades
+    -----------------
+
+    AgricultureExpert transforma la información agrícola contenida en
+    la observation en features sintéticas y estructuradas.
+
+    Se ocupa de:
+
+    - tiempo agrícola:
+        * step
+        * day
+        * hour
+
+    - superficie de la granja:
+        * tiles totales
+        * tiles bloqueados
+        * tiles desbloqueados
+        * tiles libres
+        * tiles ocupados
+        * tiles con maleza
+        * tiles con cultivos
+
+    - cultivos:
+        * cantidad total
+        * cantidad por tipo
+        * rendimiento
+        * cultivos listos
+        * cultivos no regados
+        * cultivos fertilizados
+
+    - producción:
+        * rendimiento actual
+        * producción disponible ahora
+
+    - superficie agrícola:
+        * superficie agrícola total
+        * superficie ocupada por cultivos
+        * superficie ocupada por malezas
+        * superficie libre
+
+    Este Expert NO:
+
+    - decide qué acción debe realizar el agente;
+    - compra semillas;
+    - vende productos;
+    - administra dinero;
+    - administra animales;
+    - administra trabajadores;
+    - analiza el mercado;
+    - realiza predicciones;
+    - utiliza Machine Learning.
+
+    Su función es exclusivamente describir de forma determinista
+    el estado agrícola actual.
+
+    Principio fundamental
+    ---------------------
+
+    La observation es la fuente de verdad.
+
+    Para una misma observation, el Expert debe producir siempre
+    exactamente las mismas features.
+
+    Estructura conceptual
+    ---------------------
+
+        Observation
+             |
+             v
+        AgricultureExpert
+             |
+             +-- Tiempo
+             |
+             +-- Superficie
+             |
+             +-- Cultivos
+             |
+             +-- Producción
+             |
+             v
+        Agriculture Features
+
+    Nota importante sobre los tiles
+    --------------------------------
+
+    La matriz "tiles" de Kaggriculture puede contener diferentes
+    tipos de valores.
+
+    Entre ellos:
+
+    - None
+    - "LOCKED"
+    - diccionarios que contienen información del tile
+
+    Por este motivo NO se puede hacer directamente:
+
+        tile.get("kind")
+
+    sin comprobar antes que "tile" sea un diccionario.
+
+    Esta comprobación sigue el mismo patrón utilizado en
+    FinancialExpert, que ya está funcionando correctamente.
+    """
+
+    def __init__(self, player=0):
+        """
+        Inicializa AgricultureExpert.
+
+        Parameters
+        ----------
+        player : int, default=0
+            Índice del jugador cuya granja se quiere analizar.
+
+        El estado interno se inicializa vacío. Será actualizado
+        mediante process_observation().
+        """
+
+        self.player = player
+
+        # ============================================================
+        # TIEMPO
+        # ============================================================
+
+        # Step actual de la simulación.
+        self.step = 0
+
+        # Día actual.
+        self.day = 0
+
+        # Hora actual.
+        self.hour = 0
+
+        # ============================================================
+        # GRANJA
+        # ============================================================
+
+        # Datos completos de la granja del jugador.
+        self.farm = {}
+
+        # Matriz de tiles de la granja.
+        self.tiles = []
+
+        # ============================================================
+        # SUPERFICIE / TILES
+        # ============================================================
+
+        # Cantidad total de celdas de la matriz.
+        self.total_tiles = 0
+
+        # Cantidad de celdas bloqueadas.
+        self.locked_tiles = 0
+
+        # Cantidad de celdas desbloqueadas.
+        self.unlocked_tiles = 0
+
+        # Cantidad de celdas desbloqueadas y realmente vacías.
+        self.empty_tiles = 0
+
+        # Cantidad de celdas ocupadas.
+        #
+        # Actualmente incluye:
+        # - WEED
+        # - PLANT
+        self.occupied_tiles = 0
+
+        # Cantidad de celdas ocupadas por malezas.
+        self.weed_tiles = 0
+
+        # Cantidad de celdas ocupadas por cultivos.
+        self.plant_tiles = 0
+
+        # ============================================================
+        # CULTIVOS
+        # ============================================================
+
+        # Agregación de cultivos por tipo.
+        #
+        # Ejemplo:
+        #
+        # {
+        #     "WHEAT": {
+        #         "count": 2,
+        #         "yield_units": 3,
+        #         "ready_count": 1,
+        #         "unwatered_count": 0,
+        #         "fertilized_count": 1
+        #     }
+        # }
+        self.crops = {}
+
+        # Cantidad total de plantas.
+        self.total_plants = 0
+
+        # Cantidad de plantas consideradas listas.
+        self.ready_plants = 0
+
+        # Cantidad de plantas con períodos consecutivos sin riego.
+        self.unwatered_plants = 0
+
+        # Cantidad de plantas actualmente fertilizadas.
+        self.fertilized_plants = 0
+
+        # ============================================================
+        # PRODUCCIÓN
+        # ============================================================
+
+        # Suma de las unidades de rendimiento de todas las plantas.
+        self.current_yield = 0
+
+        # Producción que actualmente puede considerarse disponible.
+        self.production_ready_now = 0
+
+        # ============================================================
+        # SUPERFICIE AGRÍCOLA
+        # ============================================================
+
+        # Toda la superficie desbloqueada.
+        #
+        # Ejemplo:
+        #
+        # 25 tiles desbloqueados
+        #
+        # => agricultural_surface = 25
+        #
+        # Incluye:
+        # - cultivos
+        # - malezas
+        # - superficie libre
+        self.agricultural_surface = 0
+
+        # Superficie ocupada específicamente por cultivos.
+        self.occupied_agricultural_surface = 0
+
+        # Superficie ocupada por malezas.
+        self.weed_agricultural_surface = 0
+
+        # Superficie desbloqueada y realmente libre.
+        self.free_agricultural_surface = 0
+
+        # ============================================================
+        # DETALLE INTERNO DE CULTIVOS
+        # ============================================================
+
+        # Lista con el detalle de cada cultivo individual.
+        #
+        # A diferencia de self.crops, que está agregada por tipo,
+        # aquí cada elemento representa una planta concreta.
+        self.crop_details = []
+
+    # =================================================================
+    # PROCESAMIENTO PRINCIPAL
+    # =================================================================
+
+    def process_observation(self, obs):
+        """
+        Procesa una observation de Kaggriculture.
+
+        Parameters
+        ----------
+        obs : dict
+            Observation recibida directamente por el agent.
+
+        Returns
+        -------
+        None
+
+        La función actualiza todo el estado interno del Expert
+        utilizando exclusivamente la observation.
+
+        IMPORTANTE
+        ----------
+
+        Cuando Kaggriculture ejecuta:
+
+            agent(obs)
+
+        el parámetro "obs" ya es la observation.
+
+        Por lo tanto, NO debemos hacer:
+
+            observation = obs["observation"]
+
+        sino:
+
+            observation = obs
+        """
+
+        observation = obs
+
+        # ============================================================
+        # TIEMPO
+        # ============================================================
+
+        self.step = observation.get("step", 0)
+        self.day = observation.get("day", 0)
+        self.hour = observation.get("hour", 0)
+
+        # ============================================================
+        # GRANJA DEL JUGADOR
+        # ============================================================
+
+        farms = observation.get("farms", [])
+
+        # Protección ante un índice de jugador inexistente.
+        if self.player >= len(farms):
+            return
+
+        self.farm = farms[self.player]
+
+        self.tiles = self.farm.get("tiles", [])
+
+        # ============================================================
+        # RESET DEL ESTADO DERIVADO
+        # ============================================================
+
+        # Superficie.
+        self.total_tiles = 0
+        self.locked_tiles = 0
+        self.unlocked_tiles = 0
+        self.empty_tiles = 0
+        self.occupied_tiles = 0
+        self.weed_tiles = 0
+        self.plant_tiles = 0
+
+        # Cultivos.
+        self.crops = {}
+        self.total_plants = 0
+        self.ready_plants = 0
+        self.unwatered_plants = 0
+        self.fertilized_plants = 0
+
+        # Producción.
+        self.current_yield = 0
+        self.production_ready_now = 0
+
+        # Superficie agrícola.
+        self.agricultural_surface = 0
+        self.occupied_agricultural_surface = 0
+        self.weed_agricultural_surface = 0
+        self.free_agricultural_surface = 0
+
+        # Detalle de cultivos.
+        self.crop_details = []
+
+        # ============================================================
+        # ANÁLISIS DE LOS TILES
+        # ============================================================
+
+        for row in self.tiles:
+
+            for tile in row:
+
+                # Cada elemento de la matriz representa una celda.
+                self.total_tiles += 1
+
+                # ----------------------------------------------------
+                # CELDA LIBRE Y DESBLOQUEADA
+                # ----------------------------------------------------
+                #
+                # None representa una celda que está desbloqueada
+                # pero no está ocupada.
+                #
+                if tile is None:
+
+                    self.unlocked_tiles += 1
+                    self.empty_tiles += 1
+                    self.free_agricultural_surface += 1
+
+                    continue
+
+                # ----------------------------------------------------
+                # CELDA BLOQUEADA
+                # ----------------------------------------------------
+                #
+                # Una celda LOCKED no forma parte de la superficie
+                # agrícola actualmente utilizable.
+                #
+                if tile == "LOCKED":
+
+                    self.locked_tiles += 1
+
+                    continue
+
+                # ----------------------------------------------------
+                # OTROS TIPOS QUE NO SON DICT
+                # ----------------------------------------------------
+                #
+                # No debemos llamar .get() sobre un string u otro
+                # objeto que no sea un diccionario.
+                #
+                # Esto evita:
+                #
+                # AttributeError:
+                # 'str' object has no attribute 'get'
+                #
+                # Se sigue aquí el mismo patrón de FinancialExpert.
+                #
+                if not isinstance(tile, dict):
+                    continue
+
+                # A partir de aquí sabemos que tile es un dict.
+                tile_kind = tile.get("kind")
+
+                # ----------------------------------------------------
+                # MALEZA
+                # ----------------------------------------------------
+
+                if tile_kind == "WEED":
+
+                    self.unlocked_tiles += 1
+                    self.occupied_tiles += 1
+                    self.weed_tiles += 1
+
+                    self.weed_agricultural_surface += 1
+
+                    continue
+
+                # ----------------------------------------------------
+                # CULTIVO
+                # ----------------------------------------------------
+
+                if tile_kind == "PLANT":
+
+                    self.unlocked_tiles += 1
+                    self.occupied_tiles += 1
+                    self.plant_tiles += 1
+
+                    self._process_crop(tile)
+
+        # ============================================================
+        # SUPERFICIE AGRÍCOLA
+        # ============================================================
+
+        # La superficie agrícola es TODA la superficie desbloqueada.
+        #
+        # Por ejemplo:
+        #
+        #     25 unlocked
+        #      1 plant
+        #      4 weeds
+        #     20 free
+        #
+        # Entonces:
+        #
+        #     agricultural_surface = 25
+        #
+        self.agricultural_surface = self.unlocked_tiles
+
+        # Superficie ocupada específicamente por cultivos.
+        self.occupied_agricultural_surface = self.plant_tiles
+
+        # Superficie realmente libre.
+        self.free_agricultural_surface = self.empty_tiles
+
+    # =================================================================
+    # PROCESAMIENTO DE UN CULTIVO
+    # =================================================================
+
+    def _process_crop(self, tile):
+        """
+        Procesa un cultivo individual.
+
+        Parameters
+        ----------
+        tile : dict
+            Diccionario correspondiente a un tile de tipo PLANT.
+
+        La función:
+
+        1. obtiene los datos brutos del cultivo;
+        2. calcula features derivadas;
+        3. guarda el detalle individual;
+        4. actualiza la agregación por tipo de cultivo;
+        5. actualiza los contadores globales;
+        6. actualiza la producción.
+        """
+
+        # ============================================================
+        # DATOS BRUTOS
+        # ============================================================
+
+        crop = tile.get("crop")
+
+        if crop is None:
+            crop = "UNKNOWN"
+
+        planted_day = tile.get("planted_day", 0)
+
+        yield_units = tile.get("yield_units", 0)
+
+        watered_today = tile.get(
+            "watered_today",
+            False
+        )
+
+        consecutive_unwatered = tile.get(
+            "consecutive_unwatered",
+            0
+        )
+
+        fertilized_until_day = tile.get(
+            "fertilized_until_day",
+            -1
+        )
+
+        max_lifespan_step = tile.get(
+            "max_lifespan_step",
+            0
+        )
+
+        # ============================================================
+        # FEATURES DERIVADAS
+        # ============================================================
+
+        # Edad del cultivo expresada en días.
+        crop_age = self.day - planted_day
+
+        # Cantidad de steps restantes hasta max_lifespan_step.
+        steps_remaining = max_lifespan_step - self.step
+
+        # Regla determinista actual:
+        #
+        # si yield_units > 0, consideramos que el cultivo está listo.
+        is_ready = yield_units > 0
+
+        # consecutive_unwatered y watered_today representan
+        # conceptos diferentes.
+        #
+        # Un cultivo puede haber sido regado hoy y aun así tener
+        # un valor histórico de consecutive_unwatered > 0.
+        is_unwatered = consecutive_unwatered > 0
+
+        # El cultivo está fertilizado mientras el día actual
+        # no supere fertilized_until_day.
+        is_fertilized = fertilized_until_day >= self.day
+
+        # ============================================================
+        # DETALLE INDIVIDUAL
+        # ============================================================
+
+        details = {
+            "crop": crop,
+            "planted_day": planted_day,
+            "crop_age": crop_age,
+            "yield_units": yield_units,
+            "watered_today": watered_today,
+            "consecutive_unwatered": consecutive_unwatered,
+            "fertilized_until_day": fertilized_until_day,
+            "max_lifespan_step": max_lifespan_step,
+            "steps_remaining": steps_remaining,
+            "is_ready": is_ready,
+            "is_unwatered": is_unwatered,
+            "is_fertilized": is_fertilized
+        }
+
+        self.crop_details.append(details)
+
+        # ============================================================
+        # AGREGACIÓN POR TIPO DE CULTIVO
+        # ============================================================
+
+        if crop not in self.crops:
+
+            self.crops[crop] = {
+                "count": 0,
+                "yield_units": 0,
+                "ready_count": 0,
+                "unwatered_count": 0,
+                "fertilized_count": 0
+            }
+
+        # Cantidad de plantas de este tipo.
+        self.crops[crop]["count"] += 1
+
+        # Rendimiento total de este tipo de cultivo.
+        self.crops[crop]["yield_units"] += yield_units
+
+        # Plantas listas.
+        if is_ready:
+            self.crops[crop]["ready_count"] += 1
+
+        # Plantas no regadas.
+        if is_unwatered:
+            self.crops[crop]["unwatered_count"] += 1
+
+        # Plantas fertilizadas.
+        if is_fertilized:
+            self.crops[crop]["fertilized_count"] += 1
+
+        # ============================================================
+        # TOTALES GENERALES
+        # ============================================================
+
+        self.total_plants += 1
+
+        if is_ready:
+            self.ready_plants += 1
+
+        if is_unwatered:
+            self.unwatered_plants += 1
+
+        if is_fertilized:
+            self.fertilized_plants += 1
+
+        # ============================================================
+        # PRODUCCIÓN
+        # ============================================================
+
+        # Sumamos la producción aportada por esta planta.
+        self.current_yield += yield_units
+
+        # Por ahora production_ready_now sigue la misma regla
+        # determinista basada en yield_units.
+        self.production_ready_now += yield_units
+
+    # =================================================================
+    # FEATURES COMPLETAS
+    # =================================================================
+
+    def get_features(self):
+        """
+        Devuelve todas las features generadas por AgricultureExpert.
+
+        Returns
+        -------
+        dict
+            Diccionario con las features agrícolas sintéticas.
+        """
+
+        return {
+            # ========================================================
+            # TIEMPO
+            # ========================================================
+
+            "step": self.step,
+            "day": self.day,
+            "hour": self.hour,
+
+            # ========================================================
+            # SUPERFICIE / TILES
+            # ========================================================
+
+            "total_tiles": self.total_tiles,
+            "locked_tiles": self.locked_tiles,
+            "unlocked_tiles": self.unlocked_tiles,
+            "empty_tiles": self.empty_tiles,
+            "occupied_tiles": self.occupied_tiles,
+            "weed_tiles": self.weed_tiles,
+            "plant_tiles": self.plant_tiles,
+
+            # ========================================================
+            # CULTIVOS
+            # ========================================================
+
+            "total_plants": self.total_plants,
+            "crops": self.crops,
+            "ready_plants": self.ready_plants,
+            "unwatered_plants": self.unwatered_plants,
+            "fertilized_plants": self.fertilized_plants,
+
+            # ========================================================
+            # PRODUCCIÓN
+            # ========================================================
+
+            "current_yield": self.current_yield,
+            "production_ready_now": self.production_ready_now,
+
+            # ========================================================
+            # SUPERFICIE AGRÍCOLA
+            # ========================================================
+
+            "agricultural_surface": self.agricultural_surface,
+            "occupied_agricultural_surface":
+                self.occupied_agricultural_surface,
+            "weed_agricultural_surface":
+                self.weed_agricultural_surface,
+            "free_agricultural_surface":
+                self.free_agricultural_surface
+        }
+
+    # =================================================================
+    # GETTERS - TIEMPO
+    # =================================================================
+
+    def get_step(self):
+        """Devuelve el step actual."""
+        return self.step
+
+    def get_day(self):
+        """Devuelve el día actual."""
+        return self.day
+
+    def get_hour(self):
+        """Devuelve la hora actual."""
+        return self.hour
+
+    # =================================================================
+    # GETTERS - SUPERFICIE / TILES
+    # =================================================================
+
+    def get_total_tiles(self):
+        """Devuelve la cantidad total de tiles."""
+        return self.total_tiles
+
+    def get_locked_tiles(self):
+        """Devuelve la cantidad de tiles bloqueados."""
+        return self.locked_tiles
+
+    def get_unlocked_tiles(self):
+        """Devuelve la cantidad de tiles desbloqueados."""
+        return self.unlocked_tiles
+
+    def get_empty_tiles(self):
+        """Devuelve la cantidad de tiles libres."""
+        return self.empty_tiles
+
+    def get_occupied_tiles(self):
+        """Devuelve la cantidad de tiles ocupados."""
+        return self.occupied_tiles
+
+    def get_weed_tiles(self):
+        """Devuelve la cantidad de tiles con maleza."""
+        return self.weed_tiles
+
+    def get_plant_tiles(self):
+        """Devuelve la cantidad de tiles con cultivos."""
+        return self.plant_tiles
+
+    # =================================================================
+    # GETTERS - CULTIVOS
+    # =================================================================
+
+    def get_crops(self):
+        """
+        Devuelve los cultivos agregados por tipo.
+        """
+        return self.crops
+
+    def get_total_plants(self):
+        """Devuelve la cantidad total de plantas."""
+        return self.total_plants
+
+    def get_ready_plants(self):
+        """Devuelve la cantidad de plantas listas."""
+        return self.ready_plants
+
+    def get_unwatered_plants(self):
+        """Devuelve la cantidad de plantas no regadas."""
+        return self.unwatered_plants
+
+    def get_fertilized_plants(self):
+        """Devuelve la cantidad de plantas fertilizadas."""
+        return self.fertilized_plants
+
+    def get_crop_details(self):
+        """
+        Devuelve el detalle individual de cada cultivo.
+
+        Cada elemento de la lista representa una planta concreta.
+        """
+        return self.crop_details
+
+    # =================================================================
+    # GETTERS - PRODUCCIÓN
+    # =================================================================
+
+    def get_current_yield(self):
+        """
+        Devuelve el rendimiento actual total de los cultivos.
+        """
+        return self.current_yield
+
+    def get_production_ready_now(self):
+        """
+        Devuelve la producción que está disponible actualmente.
+        """
+        return self.production_ready_now
+
+    # =================================================================
+    # GETTERS - SUPERFICIE AGRÍCOLA
+    # =================================================================
+
+    def get_agricultural_surface(self):
+        """
+        Devuelve la superficie agrícola total.
+
+        Corresponde a toda la superficie desbloqueada.
+
+        Incluye:
+
+        - superficie ocupada por cultivos;
+        - superficie ocupada por malezas;
+        - superficie libre.
+        """
+        return self.agricultural_surface
+
+    def get_occupied_agricultural_surface(self):
+        """
+        Devuelve la superficie ocupada por cultivos.
+        """
+        return self.occupied_agricultural_surface
+
+    def get_weed_agricultural_surface(self):
+        """
+        Devuelve la superficie ocupada por malezas.
+        """
+        return self.weed_agricultural_surface
+
+    def get_free_agricultural_surface(self):
+        """
+        Devuelve la superficie agrícola desbloqueada y realmente libre.
+        """
+        return self.free_agricultural_surface
+
+
+
 
 class LivestockExpert:
     def __init__(self):
