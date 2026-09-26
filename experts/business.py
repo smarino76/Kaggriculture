@@ -2495,9 +2495,707 @@ class LivestockExpert:
     def __init__(self):
         pass
 
+
 class InventoryExpert:
-    def __init__(self):
-        pass
+    """
+    Expert responsible for analyzing the player's current physical inventory.
+
+    InventoryExpert answers one specific question:
+
+        "What physical resources does the player currently have,
+         and where are they located?"
+
+    The expert works exclusively with the current observation. It does not
+    analyze historical movements, actions, economic value, production,
+    strategy, or future requirements.
+
+    Inventory is divided into three distinct physical areas:
+
+    1. Seeds
+       - Stored in private["seeds"].
+       - Seeds are a separate inventory system.
+       - They are not placed in the shed.
+       - They are not carried by farmers or farm hands.
+       - They do not consume shed capacity.
+       - They are consumed directly by the PLANT action.
+
+    2. Shed
+       - Stored in private["shed"].
+       - Contains physical items such as harvested products,
+         animals waiting to be placed, and fertilizer.
+       - Has a limited capacity.
+       - Seeds are excluded from this capacity.
+
+    3. Farmer / Farm Hand inventories
+       - Stored in private["inventories"].
+       - inventories[0] is the main farmer.
+       - inventories[1:] are hired farm hands.
+       - These inventories contain items currently being carried.
+
+    Important responsibility boundary
+    ----------------------------------
+    InventoryExpert does NOT interpret what an item means.
+
+    For example:
+
+        COW in shed/inventory
+            -> physical inventory -> InventoryExpert
+
+        COW placed on a pasture
+            -> active livestock -> LivestockExpert
+
+        WHEAT in shed/inventory
+            -> physical inventory -> InventoryExpert
+
+        WHEAT growing on a PLANT tile
+            -> agricultural production -> AgricultureExpert
+
+    Similarly, InventoryExpert does not calculate prices or financial value.
+    Those responsibilities belong to FinancialExpert / MarketExpert.
+
+    The expert represents the CURRENT state only:
+
+        observation(t) -> inventory state(t)
+
+    It does not compare observation(t) with observation(t-1), and therefore
+    does not determine whether an item was bought, sold, harvested,
+    consumed, moved, or produced.
+    """
+
+    def __init__(self, player=0, shed_capacity=100):
+        """
+        Initialize the InventoryExpert.
+
+        Parameters
+        ----------
+        player : int, default=0
+            Player whose private inventory is analyzed.
+
+            In Kaggriculture the observation contains private information
+            only for the current player. The parameter is therefore mainly
+            kept for architectural consistency with the other Experts.
+
+        shed_capacity : int, default=100
+            Maximum number of non-seed items that can be stored in the shed.
+
+            The official Kaggriculture environment uses 100 as the default
+            shed capacity. The value is configurable so that the Expert does
+            not depend permanently on a specific environment configuration.
+
+        Attributes
+        ----------
+        player : int
+            Player identifier associated with this Expert.
+
+        shed_capacity : int
+            Maximum number of non-seed items allowed in the shed.
+
+        seeds : dict
+            Current seed stock from private["seeds"].
+
+        shed : dict
+            Current contents of private["shed"].
+
+        inventories : list[dict]
+            Complete list of current farmer/farm-hand inventories.
+
+            inventories[0] is the main farmer.
+            inventories[1:] are hired farm hands.
+
+        farmer_inventory : dict
+            Items currently carried by the main farmer.
+
+        hand_inventories : list[dict]
+            Items currently carried by each hired farm hand.
+
+        carried : dict
+            Aggregate of all items currently carried by the farmer
+            and all hired farm hands.
+
+        total_physical : dict
+            Aggregate physical stock outside the seed system:
+
+                shed + farmer inventory + farm-hand inventories
+
+        shed_used : int
+            Number of non-seed items currently stored in the shed.
+
+        shed_available : int
+            Remaining shed capacity.
+
+        shed_utilization : float
+            Current percentage of shed capacity being used,
+            represented as a value between 0.0 and 1.0.
+
+        total_seed_items : int
+            Total quantity of seeds currently available.
+
+        total_shed_items : int
+            Total number of non-seed items currently stored in the shed.
+
+        total_carried_items : int
+            Total number of items currently carried by the farmer
+            and farm hands.
+
+        total_physical_items : int
+            Total number of non-seed physical items owned and currently
+            located either in the shed or in a farmer/farm-hand inventory.
+        """
+
+        # ============================================================
+        # CONFIGURATION
+        # ============================================================
+
+        self.player = player
+        self.shed_capacity = shed_capacity
+
+        # ============================================================
+        # RAW INVENTORY STATE
+        # ============================================================
+
+        # private["seeds"]
+        self.seeds = {}
+
+        # private["shed"]
+        self.shed = {}
+
+        # private["inventories"]
+        self.inventories = []
+
+        # ============================================================
+        # DERIVED INVENTORY STATE
+        # ============================================================
+
+        # private["inventories"][0]
+        self.farmer_inventory = {}
+
+        # private["inventories"][1:]
+        self.hand_inventories = []
+
+        # Farmer + all hired hands
+        self.carried = {}
+
+        # Shed + farmer + hands
+        # Seeds are deliberately excluded.
+        self.total_physical = {}
+
+        # ============================================================
+        # SHED CAPACITY
+        # ============================================================
+
+        self.shed_used = 0
+        self.shed_available = 0
+        self.shed_utilization = 0.0
+
+        # ============================================================
+        # AGGREGATE QUANTITIES
+        # ============================================================
+
+        self.total_seed_items = 0
+        self.total_shed_items = 0
+        self.total_carried_items = 0
+        self.total_physical_items = 0
+
+    def process_observation(self, obs):
+        """
+        Process the current observation and update the inventory state.
+
+        This method reads the player's private inventory information from
+        the observation and calculates all InventoryExpert features.
+
+        Parameters
+        ----------
+        obs : dict
+            Current Kaggriculture observation.
+
+            The method expects the following structure:
+
+                obs["private"]["seeds"]
+                obs["private"]["shed"]
+                obs["private"]["inventories"]
+
+        Returns
+        -------
+        None
+            The processed information is stored internally and can be
+            retrieved through the getter methods or get_features().
+
+        Notes
+        -----
+        This method represents a snapshot of the current state.
+
+        It does NOT:
+            - execute actions;
+            - infer previous actions;
+            - detect purchases or sales;
+            - detect harvesting;
+            - detect consumption;
+            - calculate economic value;
+            - analyze production;
+            - analyze livestock placed on the farm;
+            - make decisions.
+        """
+
+        private = obs.get("private", {})
+
+        # ============================================================
+        # 1. RAW STATE
+        # ============================================================
+
+        self.seeds = dict(private.get("seeds", {}))
+
+        self.shed = dict(private.get("shed", {}))
+
+        self.inventories = list(
+            private.get("inventories", [])
+        )
+
+        # ============================================================
+        # 2. MAIN FARMER INVENTORY
+        # ============================================================
+
+        if self.inventories:
+            self.farmer_inventory = dict(
+                self.inventories[0]
+            )
+        else:
+            self.farmer_inventory = {}
+
+        # ============================================================
+        # 3. FARM HAND INVENTORIES
+        # ============================================================
+
+        self.hand_inventories = [
+            dict(inventory)
+            for inventory in self.inventories[1:]
+        ]
+
+        # ============================================================
+        # 4. AGGREGATE CARRIED STOCK
+        # ============================================================
+
+        self.carried = {}
+
+        self._add_inventory(
+            self.carried,
+            self.farmer_inventory
+        )
+
+        for hand_inventory in self.hand_inventories:
+            self._add_inventory(
+                self.carried,
+                hand_inventory
+            )
+
+        # ============================================================
+        # 5. TOTAL PHYSICAL STOCK
+        # ============================================================
+
+        # Start with the shed.
+        self.total_physical = dict(self.shed)
+
+        # Add everything carried by farmer and hands.
+        self._add_inventory(
+            self.total_physical,
+            self.carried
+        )
+
+        # Seeds are intentionally excluded because they belong
+        # to a separate inventory system.
+
+        # ============================================================
+        # 6. SHED CAPACITY
+        # ============================================================
+
+        self.shed_used = sum(
+            self.shed.values()
+        )
+
+        self.shed_available = max(
+            self.shed_capacity - self.shed_used,
+            0
+        )
+
+        if self.shed_capacity > 0:
+            self.shed_utilization = (
+                self.shed_used / self.shed_capacity
+            )
+        else:
+            self.shed_utilization = 0.0
+
+        # ============================================================
+        # 7. AGGREGATE QUANTITIES
+        # ============================================================
+
+        self.total_seed_items = sum(
+            self.seeds.values()
+        )
+
+        self.total_shed_items = sum(
+            self.shed.values()
+        )
+
+        self.total_carried_items = sum(
+            self.carried.values()
+        )
+
+        self.total_physical_items = sum(
+            self.total_physical.values()
+        )
+
+    @staticmethod
+    def _add_inventory(target, inventory):
+        """
+        Add the quantities contained in one inventory to another dictionary.
+
+        If an item already exists in ``target``, its quantity is increased.
+        Otherwise the item is created.
+
+        Parameters
+        ----------
+        target : dict
+            Dictionary receiving the quantities.
+
+        inventory : dict
+            Dictionary containing item quantities to add.
+
+        Returns
+        -------
+        None
+            The target dictionary is modified in place.
+
+        Example
+        -------
+        If:
+
+            target = {"WHEAT": 3}
+            inventory = {"WHEAT": 2, "COW": 1}
+
+        after the method:
+
+            target = {
+                "WHEAT": 5,
+                "COW": 1
+            }
+        """
+
+        for item, quantity in inventory.items():
+
+            target[item] = (
+                target.get(item, 0) + quantity
+            )
+
+    # ================================================================
+    # GETTERS
+    # ================================================================
+
+    def get_seeds(self):
+        """
+        Return the current seed stock.
+
+        Returns
+        -------
+        dict
+            Dictionary containing seed quantities by crop.
+
+        Example
+        -------
+            {
+                "WHEAT": 4,
+                "CARROT": 2
+            }
+
+        Notes
+        -----
+        Seeds are maintained separately from shed and carried inventory.
+        """
+
+        return dict(self.seeds)
+
+    def get_shed(self):
+        """
+        Return the current contents of the shed.
+
+        Returns
+        -------
+        dict
+            Dictionary containing item quantities currently stored
+            in the shed.
+
+        Example
+        -------
+            {
+                "WHEAT": 12,
+                "COW": 2,
+                "FERTILIZER": 5
+            }
+        """
+
+        return dict(self.shed)
+
+    def get_farmer_inventory(self):
+        """
+        Return the current inventory of the main farmer.
+
+        Returns
+        -------
+        dict
+            Items currently carried by the main farmer.
+        """
+
+        return dict(self.farmer_inventory)
+
+    def get_hand_inventories(self):
+        """
+        Return the current inventories of all hired farm hands.
+
+        Returns
+        -------
+        list[dict]
+            List of inventories.
+
+            The first dictionary corresponds to the first hired hand,
+            the second dictionary to the second hired hand, and so on.
+
+        Notes
+        -----
+        The main farmer is not included in this list.
+        """
+
+        return [
+            dict(inventory)
+            for inventory in self.hand_inventories
+        ]
+
+    def get_carried(self):
+        """
+        Return the aggregate stock currently being carried.
+
+        This includes:
+
+            main farmer
+            + all hired farm hands
+
+        Returns
+        -------
+        dict
+            Aggregate quantity of each carried item.
+
+        Example
+        -------
+        If the farmer carries:
+
+            {"WHEAT": 2}
+
+        and two hands carry:
+
+            {"WHEAT": 3}
+            {"COW": 1}
+
+        the result is:
+
+            {
+                "WHEAT": 5,
+                "COW": 1
+            }
+        """
+
+        return dict(self.carried)
+
+    def get_total_physical(self):
+        """
+        Return the aggregate non-seed physical stock.
+
+        This is calculated as:
+
+            shed + farmer inventory + farm-hand inventories
+
+        Seeds are deliberately excluded.
+
+        Returns
+        -------
+        dict
+            Total physical quantity of each non-seed item.
+        """
+
+        return dict(self.total_physical)
+
+    def get_shed_capacity(self):
+        """
+        Return the configured maximum shed capacity.
+
+        Returns
+        -------
+        int
+            Maximum number of non-seed items that can be stored
+            in the shed.
+        """
+
+        return self.shed_capacity
+
+    def get_shed_used(self):
+        """
+        Return the number of non-seed items currently stored in the shed.
+
+        Returns
+        -------
+        int
+            Current shed occupancy.
+        """
+
+        return self.shed_used
+
+    def get_shed_available(self):
+        """
+        Return the remaining free shed capacity.
+
+        Returns
+        -------
+        int
+            Number of additional non-seed items that can currently
+            fit into the shed.
+
+        Notes
+        -----
+        This is a description of the current storage state.
+
+        It is NOT a prediction of future overflow.
+        """
+
+        return self.shed_available
+
+    def get_shed_utilization(self):
+        """
+        Return the current shed utilization.
+
+        Returns
+        -------
+        float
+            Shed utilization between 0.0 and 1.0.
+
+        Examples
+        --------
+        0.0
+            Empty shed.
+
+        0.5
+            Shed is half full.
+
+        1.0
+            Shed is completely full.
+        """
+
+        return self.shed_utilization
+
+    def get_features(self):
+        """
+        Return all features generated by InventoryExpert.
+
+        Returns
+        -------
+        dict
+            Complete current inventory state.
+
+        Structure
+        ---------
+        seeds
+            Seed stock.
+
+        total_seed_items
+            Total number of seeds.
+
+        shed
+            Items currently stored in the shed.
+
+        total_shed_items
+            Total number of non-seed items in the shed.
+
+        shed_capacity
+            Maximum shed capacity.
+
+        shed_used
+            Current shed occupancy.
+
+        shed_available
+            Remaining shed capacity.
+
+        shed_utilization
+            Current percentage of shed capacity in use.
+
+        farmer_inventory
+            Main farmer's inventory.
+
+        hand_inventories
+            Individual inventories of hired hands.
+
+        carried
+            Aggregate farmer + hired-hand inventory.
+
+        total_carried_items
+            Total number of carried items.
+
+        total_physical
+            Shed + all carried non-seed items.
+
+        total_physical_items
+            Total quantity of non-seed physical items.
+        """
+
+        return {
+            # --------------------------------------------------------
+            # Seeds
+            # --------------------------------------------------------
+
+            "seeds": dict(self.seeds),
+            "total_seed_items": self.total_seed_items,
+
+            # --------------------------------------------------------
+            # Shed
+            # --------------------------------------------------------
+
+            "shed": dict(self.shed),
+            "total_shed_items": self.total_shed_items,
+
+            "shed_capacity": self.shed_capacity,
+            "shed_used": self.shed_used,
+            "shed_available": self.shed_available,
+            "shed_utilization": self.shed_utilization,
+
+            # --------------------------------------------------------
+            # Main farmer
+            # --------------------------------------------------------
+
+            "farmer_inventory": dict(
+                self.farmer_inventory
+            ),
+
+            # --------------------------------------------------------
+            # Farm hands
+            # --------------------------------------------------------
+
+            "hand_inventories": [
+                dict(inventory)
+                for inventory in self.hand_inventories
+            ],
+
+            # --------------------------------------------------------
+            # Carried stock
+            # --------------------------------------------------------
+
+            "carried": dict(self.carried),
+            "total_carried_items": self.total_carried_items,
+
+            # --------------------------------------------------------
+            # Total physical stock
+            # --------------------------------------------------------
+
+            "total_physical": dict(
+                self.total_physical
+            ),
+
+            "total_physical_items": self.total_physical_items,
+        }
+
 
 class MarketExpert:
     def __init__(self):

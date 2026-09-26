@@ -1,4 +1,4 @@
-from experts.business import FinancialExpert, AgricultureExpert
+from experts.business import FinancialExpert, AgricultureExpert, InventoryExpert
 
 def agent(obs):
     player = obs["player"]
@@ -10,9 +10,13 @@ def agent(obs):
 
     financial_expert = FinancialExpert(player=player)
     agriculture_expert = AgricultureExpert(player=0)
+    inventory_expert = InventoryExpert(player=0)
     
+    #print(f"Observation from engine (obs): {obs}")
     financial_expert.process_observation(obs)
     agriculture_expert.process_observation(obs)
+    inventory_expert.process_observation(obs)
+    print(f"Inventory: {inventory_expert.get_features()}")
     
     market = []
 
