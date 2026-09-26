@@ -1,7 +1,6 @@
 from experts.business import FinancialExpert
 
 def agent(obs):
-    #print(f"Observacion : {obs}")
     player = obs["player"]
     me = obs["farms"][player]
     private = obs["private"]
@@ -15,9 +14,14 @@ def agent(obs):
     
     market = []
 
+
+    # Buy a cow if we have enough money
+    if private["shed"].get("COW", 0) == 0 and me["money"] >= 400:
+        market.append(["BUY_ANIMAL", "COW", 400])
+    
     # Buy a wheat seed if we have none and have enough money
     if private["seeds"].get("WHEAT", 0) == 0 and me["money"] >= 10:
-        market.append(["BUY_SEED", "WHEAT", 10])
+        market.append(["BUY_SEED", "WHEAT", 1])
 
     # Sell any wheat sitting in the shed
     wheat_in_shed = private["shed"].get("WHEAT", 0)
