@@ -1,6 +1,8 @@
-from experts.business import FinancialExpert, AgricultureExpert, InventoryExpert
+from experts.business import FinancialExpert, AgricultureExpert, InventoryExpert, MarketExpert
 
 
+market_expert = MarketExpert()
+    
 def agent(obs):
     player = obs["player"]
     me = obs["farms"][player]
@@ -9,16 +11,17 @@ def agent(obs):
     fx, fy = me["farmer"]
     tile = me["tiles"][fy][fx]
 
+    #print(f"OBS----\    {obs}")
+          
     financial_expert = FinancialExpert(player=player)
     agriculture_expert = AgricultureExpert(player=player)
     inventory_expert = InventoryExpert(player=player)
 
-
     financial_expert.process_observation(obs)
     agriculture_expert.process_observation(obs)
     inventory_expert.process_observation(obs)
-
-    # print(f"Inventory: {inventory_expert.get_features()}")
+    market_expert.process_observation(obs)
+    print(f"Market: {market_expert.get_features()}")
 
     market = []
 
@@ -74,7 +77,7 @@ def agent(obs):
 
         # If we are adjacent to the shed, pick up one cow.
         if (fx, fy) in [(4, 4), (5, 4), (4, 5), (5, 5)]:
-            print(f"observacion antes de return PICKUP COW: {obs}")
+           # print(f"observacion antes de return PICKUP COW: {obs}")
             
             return {
                 "farmer": ["PICKUP", "COW", 1],
@@ -85,7 +88,7 @@ def agent(obs):
     # 2. We are standing on an empty tile and have a cow.
     #    Build the pasture first.
     if tile is None and cows_in_inventory > 0:
-        print(f"observacion antes de return BUILD_PASTURE: {obs}")
+        #print(f"observacion antes de return BUILD_PASTURE: {obs}")
  
         return {            
             "farmer": ["BUILD_PASTURE"],
@@ -96,7 +99,7 @@ def agent(obs):
     # 3. We are standing on a pasture and have a cow
     #    in the farmer inventory.
     if is_pasture and cows_in_inventory > 0:
-        print(f"observacion antes de return PLACE COW: {obs}")
+        #print(f"observacion antes de return PLACE COW: {obs}")
         return {
             "farmer": ["PLACE", "COW"],
             "hands": [],

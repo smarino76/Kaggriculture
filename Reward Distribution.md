@@ -10,7 +10,7 @@ The central problem is:
 
 The goal is not initially to define the final reinforcement-learning algorithm.
 
-The goal is to establish a rational and explainable **reward signal** that can later be used for:
+The goal is to establish a rational, deterministic and explainable **reward signal** that can later be used for:
 
 * supervised learning
 * reinforcement learning
@@ -21,7 +21,17 @@ The goal is to establish a rational and explainable **reward signal** that can l
 
 The fundamental hypothesis is:
 
-> **The quality of an action should be evaluated according to its contribution to the evolution of the farm's economic and operational state, not only according to the final result of the game.**
+> **The quality of an action should be evaluated according to its contribution to the evolution of the farm's economic, productive, operational and competitive state, not only according to the final result of the game.**
+
+A second important hypothesis is:
+
+> **The absolute value of an economic result is not sufficient to determine whether an action was good. Its value must be interpreted in the context of the player's trajectory and, where possible, relative to the observable state of the opponent.**
+
+A third hypothesis has now emerged:
+
+> **Competitive strategy is sufficiently important to justify a dedicated Business Expert responsible for representing the player's strategic position relative to the observable opponent.**
+
+This Strategic / Competitive Expert does not make the final decision and does not calculate the reward. It provides the semantic state required to evaluate competitive consequences.
 
 ---
 
@@ -44,7 +54,7 @@ It would appear that:
 
 therefore Game A was better.
 
-However, consider another game:
+However:
 
 ```text
 Game C → final money = 10,000
@@ -52,8 +62,6 @@ Game D → final money = 5,000
 ```
 
 The absolute values cannot be compared directly with the first games.
-
-The same problem exists with liquidity.
 
 A farm ending with:
 
@@ -67,108 +75,106 @@ may have performed much better than another farm ending with:
 90,000
 ```
 
-if the initial conditions, investments, assets and economic trajectory were different.
+if initial conditions, investments, assets, production and economic trajectory were different.
 
 Therefore:
 
 > **Absolute final liquidity is not a sufficiently robust target.**
 
----
+The same principle applies to:
 
-# 3. Why final victory is also insufficient
-
-Another possible target would be:
-
-```text
-WIN  → +1
-DRAW →  0
-LOSS → -1
-```
-
-This is useful for evaluating the final result, but it has an important limitation.
-
-The final result does not tell us which individual decisions contributed to it.
-
-Consider a sequence:
-
-```text
-t1 → action
-t2 → action
-t3 → action
-...
-t718 → action
-t719 → action
-```
-
-Suppose the agent wins.
-
-If the entire reward is assigned to the final action:
-
-```text
-t719 → +1
-```
-
-the model may incorrectly learn:
-
-> "The last action is what causes victory."
-
-This is a classic **credit assignment problem**.
-
-The same problem occurs in the opposite direction:
-
-```text
-LOSS → -1
-```
-
-If the complete negative reward is assigned to the final action, the model may learn that the last action was responsible for the defeat even if the decisive mistake occurred several turns earlier.
+* cash
+* net worth
+* inventory value
+* production
+* number of animals
+* accumulated income
+* any other isolated absolute quantity
 
 ---
 
-# 4. Lesson from the Tic-Tac-Toe experiment
+# 3. The football analogy: absolute performance is not victory
 
-A useful conceptual reference is the previous Tic-Tac-Toe experiment.
+An important conceptual insight is provided by competitive sports.
 
-An initial reward strategy concentrated too much reward on the final move.
-
-The model learned an incorrect association:
+Suppose:
 
 ```text
-winning → final move
+Match A
+
+Team A scores 3
+Team B scores 4
+
+→ LOSS
 ```
 
-After analyzing the game more carefully, the reward distribution was changed.
+and:
 
-The important insight was that the decisive contribution was often made before the final move.
+```text
+Match B
+
+Team A scores 2
+Team B scores 0
+
+→ WIN
+```
+
+The team scored:
+
+```text
+3 goals in a loss
+2 goals in a win
+```
+
+Therefore:
+
+```text
+3 goals ≠ necessarily better than 2 goals
+```
+
+The number of goals alone does not determine whether the performance was successful.
+
+The relevant quantity is the **competitive result**.
+
+The same conceptual problem exists in Kaggriculture.
 
 For example:
 
 ```text
-victory
-   ↑
-penultimate move → highly relevant
-last move        → consequence / completion
+Player:
++20% net worth
+
+Opponent:
++30% net worth
 ```
 
-Similarly, in a defeat:
+versus:
 
 ```text
-defeat
-   ↑
-earlier mistake → important negative contribution
-final move      → often only the consequence
+Player:
++10% net worth
+
+Opponent:
++2% net worth
 ```
 
-The improved reward distribution produced a much stronger player.
+A positive economic change is not automatically a positive competitive change.
 
-This suggests a general principle:
+Therefore the reward system should distinguish:
 
-> **The reward should be distributed according to causal contribution, not simply according to temporal position.**
+```text
+OWN PROGRESS
+```
 
-This principle is particularly relevant to Kaggriculture.
+from:
+
+```text
+COMPETITIVE PROGRESS
+```
 
 ---
 
-# 5. Kaggriculture is a sequential decision problem
+# 4. Kaggriculture is a sequential competitive decision problem
 
 A Kaggriculture game is not a collection of independent observations.
 
@@ -192,431 +198,924 @@ Observation₇₁₉
 
 Each action changes the state of the farm.
 
-An action may therefore have:
+At the same time, the opponent is changing its own state.
 
-* immediate consequences
-* delayed consequences
-* indirect consequences
-* economic consequences
-* production consequences
-* opportunity consequences
-
-Example:
+Therefore the problem is closer to:
 
 ```text
-BUY SEED
-   ↓
-PLANT
-   ↓
-WATER
-   ↓
-GROW
-   ↓
-HARVEST
-   ↓
-SELL
+Own state
+    +
+Opponent observable state
+    +
+Strategic context
+    +
+Action
+    ↓
+New own state
+    +
+New opponent observable state
+    ↓
+Economic / productive / competitive consequence
 ```
 
-The economic benefit may appear much later than the original decision.
-
-Therefore the reward mechanism must be capable of assigning credit to earlier actions.
+This introduces an explicit strategic dimension.
 
 ---
 
-# 6. The important distinction: state value vs action contribution
+# 5. Business Experts and their responsibilities
 
-A critical distinction is required.
-
-The following are not the same:
+The Business Expert architecture should now distinguish the following domains:
 
 ```text
-state value
+FinancialExpert
+    ↓
+Economic / financial state
+
+AgricultureExpert
+    ↓
+Agricultural state
+
+LivestockExpert
+    ↓
+Livestock state
+
+InventoryExpert
+    ↓
+Physical inventory state
+
+MarketExpert
+    ↓
+Market and price state
+
+OperationsExpert
+    ↓
+Operational state
+
+StrategicExpert
+    ↓
+Competitive / strategic state
 ```
 
-and:
+The experts answer:
 
-```text
-action contribution
-```
+> **What is happening in each business domain?**
 
-For example, after selling wheat:
+They do not necessarily decide what the agent should do.
 
-```text
-cash ↑
-liquidity ↑
-net worth ↑
-```
-
-The observation after the sale has a better financial state.
-
-However, the objective is not simply to say:
-
-```text
-new liquidity = target
-```
-
-Instead, we want to understand:
-
-> **How much did the previous action contribute to the improvement?**
-
-Therefore the learning target should preferably represent a **change or contribution**, rather than an absolute financial quantity.
+The distinction is fundamental.
 
 ---
 
-# 7. Use normalized changes instead of absolute values
+# 6. Strategic / Competitive Expert
 
-A possible starting point is to compare the state before and after an action.
+A dedicated **StrategicExpert** should be considered part of the Business Expert layer.
 
-For example:
+Its responsibility is to represent the player's current **strategic and competitive position**.
 
-```text
-liquidity_before
-liquidity_after
-```
-
-Instead of using:
+It should answer questions such as:
 
 ```text
-liquidity_after
+Where am I relative to the opponent?
+
+Is my economic position improving or deteriorating?
+
+Is my productive capacity increasing relative to the opponent?
+
+Am I expanding faster or slower?
+
+Am I accumulating a strategic advantage or disadvantage?
+
+How much time remains?
+
+Is the current position aggressive, defensive, balanced or transitional?
+
+Which observable competitive dimensions are changing?
 ```
 
-we calculate a relative change:
+The expert should initially remain deterministic.
 
-```text
-Δliquidity =
-    (liquidity_after - liquidity_before)
-    / liquidity_before
-```
+It should not make strategic decisions.
 
-Similarly:
+It should not calculate the final reward.
 
-```text
-Δnet_worth =
-    (net_worth_after - net_worth_before)
-    / net_worth_before
-```
-
-This makes observations from different games more comparable.
-
-Example:
-
-```text
-Game A
-
-liquidity:
-100 → 108
-
-Δ = +8%
-```
-
-and:
-
-```text
-Game B
-
-liquidity:
-1,000 → 1,080
-
-Δ = +8%
-```
-
-The absolute values are different, but the relative change is the same.
-
-This is much closer to what we want to measure.
+It should not contain ML.
 
 ---
 
-# 8. Liquidity alone is not sufficient
+# 7. StrategicExpert is not a "decision maker"
 
-Liquidity is useful, but it must not be treated as the complete reward.
-
-Consider:
+The StrategicExpert should NOT directly answer:
 
 ```text
 BUY COW
-```
-
-The immediate effect may be:
-
-```text
-cash              ↓
-liquidity         ↓
-animal assets     ↑
-net worth         ≈
-```
-
-If we use liquidity alone:
-
-```text
-reward < 0
-```
-
-we would incorrectly classify the investment as bad.
-
-The action converted cash into an asset.
-
-Therefore the reward mechanism must consider multiple dimensions.
-
----
-
-# 9. Financial state decomposition
-
-The Business Experts provide the information necessary to distinguish different types of state changes.
-
-Important variables include:
-
-```text
-cash
-liquidity
-inventory_value
-seed_value
-animal_asset_value
-land_value
-assets
-net_worth
-cash_flow
-```
-
-This allows us to distinguish several situations.
-
----
-
-# 10. Basic economic transition matrix
-
-Consider an action that changes liquidity and net worth.
-
-### Case A — Liquidity decreases, net worth remains approximately constant
-
-```text
-liquidity ↓
-net_worth ≈ constant
-```
-
-Possible interpretation:
-
-```text
-investment
-```
-
-Example:
-
-```text
-BUY COW
-```
-
-Cash becomes an animal asset.
-
-This should not automatically receive a negative reward.
-
----
-
-### Case B — Liquidity decreases, net worth increases
-
-```text
-liquidity ↓
-net_worth ↑
-```
-
-Possible interpretation:
-
-```text
-productive investment
-```
-
-This can be strongly positive.
-
-Example:
-
-```text
-BUY SEED
-→ PLANT
-→ future production increases
 ```
 
 or:
 
 ```text
-BUY ANIMAL
-→ productive asset increases
+SELL WHEAT
 ```
 
-The exact reward should depend on context and subsequent performance.
-
----
-
-### Case C — Liquidity decreases, net worth decreases
+or:
 
 ```text
-liquidity ↓
-net_worth ↓
+EXPAND LAND
 ```
 
-Possible interpretation:
+Those are decisions belonging to a higher-level decision/policy layer.
+
+The StrategicExpert should instead provide information such as:
 
 ```text
-economic loss
+relative_net_worth
+relative_cash
+relative_land
+relative_production_capacity
+relative_animal_capacity
+economic_growth_difference
+production_growth_difference
+remaining_time
+competitive_position
 ```
 
-This is a strong candidate for a negative reward.
-
----
-
-### Case D — Liquidity increases, net worth increases
-
-```text
-liquidity ↑
-net_worth ↑
-```
-
-Possible interpretation:
-
-```text
-productive income / value creation
-```
-
-Example:
-
-```text
-SELL HARVEST
-```
-
-This is generally positive.
-
----
-
-### Case E — Liquidity increases, net worth remains approximately constant
-
-```text
-liquidity ↑
-net_worth ≈ constant
-```
-
-Possible interpretation:
-
-```text
-asset conversion
-```
-
-Example:
-
-```text
-SELL INVENTORY
-```
-
-The farm converts an asset into cash.
-
-This should not necessarily receive the same reward as genuine value creation.
-
----
-
-### Case F — Liquidity increases, net worth decreases
-
-```text
-liquidity ↑
-net_worth ↓
-```
-
-Possible interpretation:
-
-```text
-asset liquidation / economic loss
-```
-
-The farm gained cash but lost total value.
-
-This should potentially receive a negative or limited reward.
-
----
-
-# 11. The reward should represent economic progress
-
-The previous matrix suggests that the reward should not simply answer:
-
-> "Did cash increase?"
-
-Instead it should answer:
-
-> **"Did the action improve the economic position of the farm, considering both liquidity and total value?"**
-
-This leads to the concept of a synthetic reward score.
-
-For example:
-
-```text
-reward_score =
-    f(
-        Δcash,
-        Δliquidity,
-        Δassets,
-        Δnet_worth,
-        production_change,
-        inventory_change,
-        operational_state
-    )
-```
-
-The exact function remains to be determined.
-
----
-
-# 12. Reward as a synthetic score
-
-The target therefore does not necessarily need to be a raw game variable.
-
-Instead:
-
-```text
-RAW OBSERVATION
-       ↓
-Business Experts
-       ↓
-Economic / operational state
-       ↓
-State transition
-       ↓
-Reward calculation
-       ↓
-Synthetic reward score
-```
-
-Example:
-
-```text
-t0
-cash = 1,000
-net_worth = 2,000
-
-       ↓ action
-
-BUY COW
-
-       ↓
-
-t1
-cash = 600
-animal_value = 400
-net_worth = 2,000
-```
-
-The raw liquidity decreased.
-
-But:
-
-```text
-net_worth ≈ unchanged
-```
+The decision layer can then use these features.
 
 Therefore:
 
 ```text
-reward ≠ strongly negative
-```
+StrategicExpert
+    ↓
+describes strategic position
 
-The action should instead be interpreted as a capital allocation decision.
+Decision / Policy
+    ↓
+chooses action
+```
 
 ---
 
-# 13. Delayed rewards
+# 8. Strategic state versus strategic decision
+
+This distinction should be explicit.
+
+### Strategic state
+
+Describes:
+
+```text
+what the competitive situation currently is
+```
+
+### Strategic decision
+
+Answers:
+
+```text
+what should I do because of that situation?
+```
+
+For example:
+
+```text
+Strategic state:
+
+own net worth growth = +8%
+opponent net worth growth = +12%
+own production capacity = increasing
+opponent production capacity = increasing faster
+remaining days = 5
+```
+
+The StrategicExpert reports this state.
+
+It should not automatically conclude:
+
+```text
+BUY ANIMAL
+```
+
+or:
+
+```text
+SELL EVERYTHING
+```
+
+That decision belongs elsewhere.
+
+---
+
+# 9. StrategicExpert inputs
+
+The StrategicExpert should consume semantic information from the game observation and, where appropriate, from the other Business Experts.
+
+Conceptually:
+
+```text
+OBS
+ │
+ ├── Financial state
+ ├── Agriculture state
+ ├── Livestock state
+ ├── Inventory state
+ ├── Market state
+ └── Operations state
+          │
+          ▼
+    StrategicExpert
+          │
+          ▼
+   Strategic state
+```
+
+However, an important architectural question remains:
+
+> Should StrategicExpert directly depend on other Experts, or independently reconstruct the required information from `obs`?
+
+For the first implementation, maintaining the same autonomous philosophy used by the other Business Experts is preferable:
+
+```text
+StrategicExpert(obs)
+```
+
+should be able to reconstruct its state directly from the observation.
+
+This avoids hidden coupling between experts.
+
+Later, a higher-level orchestration layer can combine their outputs.
+
+---
+
+# 10. Public opponent information
+
+The StrategicExpert is the natural place to process information about the opponent.
+
+However, only information genuinely observable during gameplay should become an inference feature.
+
+Potential public variables include, subject to verification:
+
+```text
+opponent.money
+opponent.tiles
+opponent.farmer_position
+opponent.hands
+opponent.unlocked_land
+opponent.visible structures
+opponent.visible plants
+opponent.visible animals
+```
+
+These raw variables should be transformed into meaningful semantic features.
+
+For example:
+
+```text
+opponent_cash
+
+opponent_unlocked_land
+
+opponent_cultivated_surface
+
+opponent_crop_count
+
+opponent_animal_structures
+
+opponent_visible_production
+
+opponent_operational_capacity
+```
+
+---
+
+# 11. Private opponent information and leakage
+
+Historical replay files may expose information that would not be available during real gameplay.
+
+For example:
+
+```text
+opponent.private.shed
+opponent.private.seeds
+opponent.private.inventories
+```
+
+If these are not available to the agent during inference, they must not become model input.
+
+Otherwise:
+
+```text
+TRAINING INFORMATION
+        ≠
+INFERENCE INFORMATION
+```
+
+and the model would suffer from information leakage / train-inference mismatch.
+
+The StrategicExpert therefore needs two conceptual information boundaries:
+
+```text
+PUBLIC STRATEGIC STATE
+```
+
+for inference and model input,
+
+and:
+
+```text
+RETROSPECTIVE STRATEGIC INFORMATION
+```
+
+which may be used during historical analysis and reward reconstruction.
+
+---
+
+# 12. Candidate Strategic Features
+
+The StrategicExpert may eventually produce features such as:
+
+### Economic position
+
+```text
+own_net_worth
+opponent_public_net_worth
+relative_net_worth
+```
+
+### Economic growth
+
+```text
+own_net_worth_delta
+opponent_net_worth_delta
+relative_net_worth_delta
+```
+
+### Liquidity
+
+```text
+own_cash
+opponent_cash
+relative_cash
+```
+
+### Expansion
+
+```text
+own_unlocked_land
+opponent_unlocked_land
+relative_land
+```
+
+### Production
+
+```text
+own_production_capacity
+opponent_production_capacity
+relative_production_capacity
+```
+
+### Agriculture
+
+```text
+own_cultivated_surface
+opponent_cultivated_surface
+relative_cultivated_surface
+```
+
+### Livestock
+
+```text
+own_visible_animal_capacity
+opponent_visible_animal_capacity
+relative_animal_capacity
+```
+
+### Time
+
+```text
+day
+hour
+days_remaining
+steps_remaining
+```
+
+The final list must be validated against the actual observation schema.
+
+---
+
+# 13. Relative competitive state
+
+A conceptual variable could be:
+
+```text
+relative_net_worth =
+    own_net_worth - opponent_net_worth
+```
+
+and its transition:
+
+```text
+Δrelative_net_worth =
+    relative_net_worth_after
+    -
+    relative_net_worth_before
+```
+
+Equivalent concepts can be considered for:
+
+```text
+cash
+land
+production capacity
+cultivated surface
+visible livestock capacity
+other strategically meaningful public variables
+```
+
+However:
+
+> **Not every difference between players is necessarily strategically meaningful.**
+
+Feature selection must therefore be validated experimentally.
+
+---
+
+# 14. Strategic trajectory
+
+The StrategicExpert should eventually distinguish the current state from the trajectory.
+
+For example:
+
+```text
+Current relative position:
+-5%
+```
+
+does not tell us whether the player is:
+
+```text
+recovering
+```
+
+or:
+
+```text
+falling further behind
+```
+
+Therefore temporal features may be required:
+
+```text
+relative_position_t
+relative_position_t-1
+relative_position_t-k
+```
+
+and:
+
+```text
+competitive_trend
+```
+
+This is important because strategy concerns not only:
+
+```text
+where am I?
+```
+
+but also:
+
+```text
+where am I going?
+```
+
+---
+
+# 15. Strategic context and remaining time
+
+The same competitive position can have different meanings depending on the remaining time.
+
+For example:
+
+```text
+Player behind
+```
+
+at:
+
+```text
+day 5
+```
+
+is not necessarily equivalent to:
+
+```text
+Player behind
+```
+
+at:
+
+```text
+day 29
+```
+
+Therefore strategic state must incorporate temporal context:
+
+```text
+competitive_position
++
+remaining_time
++
+trajectory
+```
+
+This allows the learning system to distinguish between:
+
+```text
+recoverable disadvantage
+```
+
+and:
+
+```text
+late-game disadvantage
+```
+
+without requiring the StrategicExpert itself to make a decision.
+
+---
+
+# 16. StrategicExpert and the Reward Engine
+
+The StrategicExpert does not calculate the reward.
+
+Instead:
+
+```text
+OBS
+ │
+ ├── FinancialExpert
+ ├── AgricultureExpert
+ ├── LivestockExpert
+ ├── InventoryExpert
+ ├── MarketExpert
+ ├── OperationsExpert
+ └── StrategicExpert
+          │
+          ▼
+    Semantic State
+          │
+          ▼
+     Reward Engine
+```
+
+The Reward Engine then evaluates the transition.
+
+For example:
+
+```text
+Strategic state_t
+        ↓
+Action
+        ↓
+Strategic state_t+1
+        ↓
+Competitive progress
+```
+
+This becomes one component of the overall reward.
+
+---
+
+# 17. Own progress versus competitive progress
+
+The reward architecture should explicitly maintain two different concepts:
+
+```text
+OWN PROGRESS
+```
+
+and:
+
+```text
+COMPETITIVE PROGRESS
+```
+
+Own progress may contain:
+
+```text
+Δliquidity
+Δnet_worth
+Δassets
+Δproduction
+Δproductive_capacity
+```
+
+Competitive progress may contain:
+
+```text
+Δrelative_net_worth
+Δrelative_production
+Δrelative_land
+Δrelative_capacity
+```
+
+They should initially remain separate.
+
+Only afterward should the Reward Engine investigate how they should be combined.
+
+---
+
+# 18. Strategic progress is not identical to winning
+
+The StrategicExpert should not produce:
+
+```text
+WIN
+LOSS
+```
+
+as its primary output.
+
+Instead it should describe:
+
+```text
+competitive state
+competitive trajectory
+relative progress
+```
+
+The final game result remains a terminal/contextual variable.
+
+This prevents:
+
+```text
+WIN = every previous strategic state was good
+```
+
+and:
+
+```text
+LOSS = every previous strategic state was bad
+```
+
+---
+
+# 19. Economic quality versus competitive quality
+
+The introduction of StrategicExpert reinforces an important distinction.
+
+An action can be:
+
+```text
+economically positive
+```
+
+while:
+
+```text
+competitively insufficient
+```
+
+For example:
+
+```text
+SELL WHEAT
+
+Own:
++8% liquidity
++5% net worth
+
+Opponent:
++12% comparable economic progress
+```
+
+The action may still have created economic value.
+
+The strategic consequence is simply different.
+
+Therefore the Reward Engine should preserve:
+
+```text
+economic_score
+```
+
+and:
+
+```text
+competitive_score
+```
+
+as separate dimensions before combining them.
+
+---
+
+# 20. Strategic decisions and opportunity cost
+
+The StrategicExpert may also eventually help represent **opportunity cost**, but this must be treated carefully.
+
+For example:
+
+```text
+Player has 1000 cash.
+
+Option A:
+BUY COW
+
+Option B:
+BUY LAND
+
+Option C:
+BUY SEEDS
+```
+
+The StrategicExpert should not decide which option is best.
+
+However, the state representation may expose:
+
+```text
+remaining liquidity
+available productive capacity
+relative competitive position
+remaining time
+opponent expansion
+```
+
+which allows a later decision model to learn that the same investment may have different strategic implications in different contexts.
+
+Thus:
+
+```text
+StrategicExpert
+    ↓
+context
+
+Decision model
+    ↓
+choice
+```
+
+---
+
+# 21. Business Experts as semantic state generators
+
+The Business Experts therefore form a semantic representation layer:
+
+```text
+OBSERVATION
+     │
+     ├── FinancialExpert
+     │
+     ├── AgricultureExpert
+     │
+     ├── LivestockExpert
+     │
+     ├── InventoryExpert
+     │
+     ├── MarketExpert
+     │
+     ├── OperationsExpert
+     │
+     └── StrategicExpert
+     │
+     ▼
+SEMANTIC STATE
+```
+
+Each expert has a bounded responsibility.
+
+The StrategicExpert does not replace:
+
+```text
+FinancialExpert
+AgricultureExpert
+LivestockExpert
+InventoryExpert
+MarketExpert
+OperationsExpert
+```
+
+It interprets their relevant competitive context at a separate semantic level.
+
+---
+
+# 22. Reward Engine
+
+The Reward Engine answers:
+
+> **How did the state transition affect the farm economically, productively, operationally and competitively?**
+
+Conceptually:
+
+```text
+state_t
+   +
+action_t
+   +
+state_t+1
+   ↓
+Reward Engine
+```
+
+It may calculate:
+
+```text
+own_economic_progress
+
+production_progress
+
+operational_progress
+
+competitive_progress
+
+delayed_consequences
+```
+
+The exact formula remains undefined.
+
+---
+
+# 23. Credit Assignment Layer
+
+The Credit Assignment Layer answers a different question:
+
+> **Which previous actions deserve credit or blame for the observed consequence?**
+
+This distinction is important:
+
+```text
+Reward Engine
+    ↓
+How good was the state transition?
+
+Credit Assignment
+    ↓
+Which previous actions contributed to that result?
+```
+
+The StrategicExpert belongs before these layers.
+
+It does not perform either task.
+
+---
+
+# 24. Causal chains
+
+Examples include:
+
+```text
+BUY SEED
+    ↓
+PLANT
+    ↓
+WATER
+    ↓
+GROW
+    ↓
+HARVEST
+    ↓
+SELL
+```
+
+and:
+
+```text
+BUY ANIMAL
+    ↓
+PICKUP
+    ↓
+PLACE
+    ↓
+CARE
+    ↓
+PRODUCE
+    ↓
+SELL
+```
+
+Competitive context can affect the interpretation of the chain.
+
+For example:
+
+```text
+BUY COW
+```
+
+may have different strategic consequences depending on:
+
+```text
+remaining time
+own production
+opponent production
+own liquidity
+opponent expansion
+```
+
+The action itself has not changed.
+
+The context has.
+
+---
+
+# 25. Delayed consequences
 
 Kaggriculture contains actions whose effects appear later.
 
@@ -629,7 +1128,7 @@ PLANT
     ↓
 WATER
     ↓
-WAIT
+GROW
     ↓
 HARVEST
     ↓
@@ -644,371 +1143,21 @@ Therefore assigning the complete reward only to:
 SELL
 ```
 
-would reproduce the same credit-assignment problem observed in Tic-Tac-Toe.
+would reproduce the credit-assignment problem.
 
-The reward must be capable of propagating backward through the relevant sequence.
+The reward must be capable of assigning credit to earlier relevant actions.
 
-Conceptually:
-
-```text
-SELL
- ↑
-HARVEST
- ↑
-GROW
- ↑
-WATER
- ↑
-PLANT
- ↑
-BUY SEED
-```
-
-The contribution of each action should be determined according to its relevance to the resulting improvement.
+The StrategicExpert can provide the competitive context in which those delayed consequences occurred.
 
 ---
 
-# 14. Example: wheat production
+# 26. Immediate versus delayed reward
 
-Suppose the following sequence occurs:
-
-```text
-t1 → BUY WHEAT SEED
-t2 → PLANT WHEAT
-t3 → WATER
-t4 → WATER
-t5 → WATER
-...
-t10 → HARVEST
-t11 → SELL WHEAT
-```
-
-At `t11`:
-
-```text
-liquidity +8%
-net_worth +5%
-```
-
-A naive reward system could assign:
-
-```text
-t11 = +8%
-```
-
-and:
-
-```text
-t1...t10 = 0
-```
-
-This would be incorrect.
-
-A better approach is to identify the relevant causal chain:
-
-```text
-BUY
- ↓
-PLANT
- ↓
-CARE
- ↓
-HARVEST
- ↓
-SELL
-```
-
-and distribute the resulting reward across the actions that enabled the production.
-
----
-
-# 15. Reward attribution
-
-The concept of **reward attribution** becomes central.
-
-If an action at time `t` produces an effect at time `t+k`, the system should be able to associate part of the future benefit with the earlier action.
-
-Conceptually:
-
-```text
-Future economic improvement
-            │
-            ▼
-     attribution layer
-            │
-      ┌─────┼─────┐
-      ▼     ▼     ▼
-     t1    t2    t3
-```
-
-The attribution mechanism must eventually answer:
-
-> **Which previous actions were necessary or useful for producing this result?**
-
-This is a different problem from simply measuring the state.
-
----
-
-# 16. Temporal reward distribution
-
-A possible approach is to distribute reward backward through time.
-
-For example:
-
-```text
-Final economic improvement = +8%
-```
-
-could produce:
-
-```text
-SELL       → +2.0%
-HARVEST    → +1.5%
-CARE       → +1.0%
-PLANT      → +2.0%
-BUY SEED   → +1.5%
-```
-
-The numbers above are only illustrative.
-
-The actual distribution must be based on a rational attribution mechanism.
-
-Possible factors include:
-
-* temporal distance
-* causal dependency
-* necessity of the action
-* production contribution
-* resource commitment
-* financial impact
-* opportunity cost
-* operational state
-
----
-
-# 17. Avoid arbitrary reward assignment
-
-An important principle is:
-
-> **Reward distribution must not be based on arbitrary intuition alone.**
-
-For example, assigning:
-
-```text
-50% → last action
-30% → previous action
-20% → earlier action
-```
-
-would introduce an arbitrary bias unless there is a reason for those weights.
-
-The system should preferably derive reward from measurable changes in the game state.
-
-The Business Experts provide the necessary semantic information.
-
----
-
-# 18. Business Experts as the reward attribution foundation
-
-The Business Experts are therefore not only useful for feature engineering.
-
-They may also provide the semantic information required to construct rewards.
-
-Example:
-
-```text
-OBS
- │
- ├── FinancialExpert
- │      ├── cash
- │      ├── net_worth
- │      ├── liquidity
- │      └── asset changes
- │
- ├── AgricultureExpert
- │      ├── crop state
- │      ├── growth
- │      └── production
- │
- ├── LivestockExpert
- │      ├── animal state
- │      ├── care
- │      └── production
- │
- ├── InventoryExpert
- │      ├── stock
- │      └── inventory changes
- │
- └── OperationsExpert
-        ├── actions
-        └── operational cost
-```
-
-These semantic states can then be used by a dedicated:
-
-```text
-Reward / Credit Assignment Layer
-```
-
----
-
-# 19. Proposed separation of responsibilities
-
-The architecture should therefore distinguish three different concepts.
-
-## Business Experts
-
-Answer:
-
-> What happened to the farm?
-
-They generate deterministic domain features.
-
----
-
-## Reward Engine
-
-Answers:
-
-> Was this state transition good or bad?
-
-It compares states and evaluates the consequences of actions.
-
----
-
-## Learning Model
-
-Answers:
-
-> Given this state, which action should be preferred?
-
-It learns from the reward-labelled historical data.
-
-Therefore:
-
-```text
-OBS
- ↓
-Business Experts
- ↓
-State Features
- ↓
-Reward Engine
- ↓
-Reward / Credit Assignment
- ↓
-Training Dataset
- ↓
-ML / RL Model
-```
-
----
-
-# 20. Reward should not necessarily equal profit
-
-Profit is an important concept, but it may not be sufficient as the complete reward.
-
-For example:
-
-```text
-Action A
-
-cash ↓
-assets ↑
-net_worth ≈
-```
-
-This may be a good investment despite producing no immediate profit.
-
-Similarly:
-
-```text
-Action B
-
-cash ↑
-assets ↓
-net_worth ↓
-```
-
-may generate immediate liquidity while damaging the long-term position.
-
-Therefore the reward should represent **economic progress**, not merely immediate profit.
-
----
-
-# 21. Relative reward
-
-Because different games may have different economic scales, reward should preferably be normalized.
-
-Possible candidates:
-
-```text
-relative_cash_change
-relative_net_worth_change
-relative_asset_change
-relative_inventory_change
-```
-
-For example:
-
-```text
-Δnet_worth_relative =
-    Δnet_worth / previous_net_worth
-```
-
-This allows comparisons such as:
-
-```text
-+8% on 1,000
-```
-
-and:
-
-```text
-+8% on 100,000
-```
-
-without confusing the absolute scale.
-
----
-
-# 22. Reward composition
-
-A possible future reward formulation could be:
-
-```text
-reward =
-    w_financial * financial_score
-  + w_production * production_score
-  + w_inventory * inventory_score
-  + w_livestock * livestock_score
-  + w_agriculture * agriculture_score
-  + w_operations * operations_score
-```
-
-where the individual components are generated from deterministic state transitions.
-
-However, the weights:
-
-```text
-w_financial
-w_production
-...
-```
-
-must not be chosen arbitrarily without validation.
-
-This formulation is therefore a **candidate architecture**, not a final formula.
-
----
-
-# 23. Immediate reward vs delayed reward
-
-Two reward concepts should be distinguished.
+Two concepts should remain distinct.
 
 ### Immediate reward
 
-Measures what happened directly after the action.
+Measures the direct state transition.
 
 Example:
 
@@ -1017,14 +1166,12 @@ BUY COW
 
 cash ↓
 animal assets ↑
-net_worth ≈
+net worth ≈
 ```
-
----
 
 ### Delayed reward
 
-Measures the future consequence.
+Measures future consequences.
 
 Example:
 
@@ -1035,680 +1182,601 @@ CARE
     ↓
 PRODUCTION
     ↓
-SELL MILK
+SELL
 ```
-
-The economic benefit appears later.
-
-A complete reward system may therefore need both:
-
-```text
-immediate reward
-+
-delayed reward
-```
-
----
-
-# 24. Reward horizon
-
-A future question is how far into the future an action should be evaluated.
-
-Possible horizons:
-
-```text
-next observation
-next few turns
-next day
-next production cycle
-end of game
-```
-
-Different actions may have different natural horizons.
-
-For example:
-
-```text
-SELL PRODUCT
-```
-
-has an almost immediate financial effect.
-
-Whereas:
-
-```text
-PLANT CROP
-```
-
-may require many turns before its economic contribution becomes observable.
-
-The reward system should therefore investigate **action-specific temporal horizons**.
-
----
-
-# 25. Causal chains
-
-Some actions naturally form causal chains.
-
-Examples:
-
-```text
-BUY SEED
- → PLANT
- → WATER
- → GROW
- → HARVEST
- → SELL
-```
-
-and:
-
-```text
-BUY ANIMAL
- → PLACE
- → FEED
- → CARE
- → PRODUCE
- → SELL
-```
-
-These chains are important because they provide a natural structure for reward attribution.
-
-A future implementation may explicitly identify these chains.
-
----
-
-# 26. Reward propagation
-
-One possible strategy is to propagate a reward backward through a causal chain.
-
-Conceptually:
-
-```text
-Economic result
-       ↓
-   SELL
-       ↓
-   HARVEST
-       ↓
-   PRODUCTION
-       ↓
-    CARE
-       ↓
-   PLANT / BUY
-```
-
-The further an action is from the result, the less reward it may receive.
-
-However, temporal distance alone should not determine the reward.
-
-An earlier action may be more important than a later one.
 
 Therefore:
 
 ```text
-reward ≠ purely temporal discounting
+immediate component
++
+delayed component
 ```
 
-The system should combine:
-
-```text
-time
-+
-causal relevance
-+
-economic contribution
-```
+may eventually be required.
 
 ---
 
-# 27. The role of negative rewards
+# 27. Final result
 
-Negative reward should not simply mean:
+The final result remains important:
 
 ```text
-cash decreased
+WIN
+DRAW
+LOSS
 ```
 
-because many valid investments reduce cash.
+but should not automatically label every action.
 
-Negative reward should instead represent something closer to:
-
-> **The action caused or contributed to an undesirable deterioration of the farm's state.**
-
-Examples:
+A losing player can have:
 
 ```text
-wasted resources
-unnecessary expense
-asset destruction
-avoidable production loss
+good actions
+bad actions
+good investments
 poor timing
-unproductive investment
-loss of economic value
 ```
 
-The distinction between:
+A winning player can also have:
 
 ```text
-investment
+good actions
+bad actions
+avoidable losses
 ```
 
-and:
-
-```text
-loss
-```
-
-is therefore fundamental.
+Therefore historical games should preserve action-level information.
 
 ---
 
-# 28. Reward should be explainable
+# 28. Historical analysis versus model input
 
-One of the main design objectives is explainability.
+This distinction remains mandatory.
 
-For every reward, the system should ideally be able to answer:
-
-```text
-Why was this action rewarded?
-```
-
-Example:
+Historical replay:
 
 ```text
-Action:
-SELL WHEAT
-
-Reward:
-+0.083
-
-Reason:
-+ liquidity
-+ net worth
-+ inventory conversion
-+ completed production cycle
+may contain complete information
 ```
 
-Another example:
+Historical reward reconstruction:
 
 ```text
-Action:
-BUY COW
-
-Reward:
-+0.012
-
-Reason:
-- liquidity
-+ animal asset value
-+ productive capacity
-net worth approximately unchanged
+may use retrospective information
+to understand what happened
 ```
 
-This makes the reward system auditable.
+Model input:
+
+```text
+must contain only information
+available during actual inference
+```
+
+Therefore:
+
+```text
+historical information
+        ≠
+model input
+```
+
+The StrategicExpert must respect this same restriction.
 
 ---
 
-# 29. Reward should be reproducible
+# 29. Candidate reward architecture
 
-Given the same:
+The conceptual reward may eventually contain:
 
 ```text
-previous state
-+
-action
-+
-resulting state
+reward =
+    own_economic_score
+    +
+    production_score
+    +
+    operational_score
+    +
+    competitive_score
+    +
+    delayed_consequence_score
 ```
 
-the reward calculation should always produce the same result.
-
-Therefore the first reward system should be:
+The competitive component could be:
 
 ```text
-deterministic
-```
-
-This is consistent with the general architecture of the Business Experts.
-
-Machine learning should learn from the reward signal.
-
-The reward itself should not initially be learned.
-
----
-
-# 30. Historical games and reward reconstruction
-
-The historical Kaggriculture datasets provide sequences of observations and actions.
-
-The proposed process is:
-
-```text
-Historical game
-      ↓
-Observation t
-      ↓
-Business Experts
-      ↓
-State t
-      ↓
-Action t
-      ↓
-Observation t+1
-      ↓
-Business Experts
-      ↓
-State t+1
-      ↓
-Reward Engine
-      ↓
-Immediate reward
-```
-
-Repeated for the complete game:
-
-```text
-t0 → reward0
-t1 → reward1
-t2 → reward2
-...
-t719 → reward719
-```
-
-This allows the historical games to be transformed into a training dataset.
-
----
-
-# 31. Potential training record
-
-A future training record could conceptually look like:
-
-```text
-state_features
-action
-next_state_features
-reward
-```
-
-For example:
-
-```text
-{
-    "state": {...},
-    "action": "BUY_SEED",
-    "next_state": {...},
-    "reward": 0.018
-}
-```
-
-For supervised learning, the reward may later become:
-
-```text
-target
-```
-
-or part of the target construction.
-
-For reinforcement learning, it may become:
-
-```text
-reward_t
-```
-
-associated with:
-
-```text
-(state_t, action_t)
-```
-
----
-
-# 32. Supervised learning vs reinforcement learning
-
-The reward-engineering work is useful for both approaches.
-
-## Supervised learning
-
-The reward can be transformed into a target representing the quality of an action.
-
-For example:
-
-```text
-state → action_quality
-```
-
-or:
-
-```text
-state → expected_reward
-```
-
----
-
-## Reinforcement learning
-
-The reward becomes part of the environment feedback:
-
-```text
-state
- ↓
-action
- ↓
-reward
- ↓
-next_state
-```
-
-The model then learns a policy or value function.
-
-Therefore the reward-engineering layer should ideally remain independent of the final learning algorithm.
-
----
-
-# 33. Important hypothesis
-
-The current central hypothesis is:
-
-> **Kaggriculture may be better modeled by learning the quality and consequences of decisions than by directly predicting the winner of the game.**
-
-The final winner may still be useful as an evaluation metric.
-
-However, it should not necessarily be the only training signal.
-
----
-
-# 34. Proposed conceptual model
-
-The current conceptual model is:
-
-```text
-                  GAME HISTORY
-                       │
-                       ▼
-                Raw observations
-                       │
-                       ▼
-              Business Experts
-                       │
-                       ▼
-                Semantic State
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-             ▼                   ▼
-        Action analysis      State change
-             │                   │
-             └─────────┬─────────┘
-                       ▼
-                 Reward Engine
-                       │
-                       ▼
-              Reward Attribution
-                       │
-                       ▼
-              Training Dataset
-                       │
-                       ▼
-                 ML / RL Model
-                       │
-                       ▼
-                    ACTION
-```
-
----
-
-# 35. Open questions
-
-The following questions remain open and should be investigated before implementing the final reward system.
-
-## 35.1 What exactly should the reward measure?
-
-Possibilities include:
-
-```text
-economic progress
-net worth improvement
-productive capacity
-future earning potential
-liquidity management
-combined economic state
-```
-
----
-
-## 35.2 How should liquidity and net worth be combined?
-
-Possible approach:
-
-```text
-financial_reward =
+competitive_score =
     f(
-        Δliquidity,
-        Δnet_worth
+        Δrelative_economic_position,
+        Δrelative_production_position,
+        Δrelative_expansion,
+        ...
     )
 ```
 
-But the exact function remains undefined.
+No final formula has been selected.
 
----
-
-## 35.3 How should investments be rewarded?
-
-For example:
+The important architectural decision is that:
 
 ```text
-BUY_COW
-BUY_SEED
-BUY_LAND
-BUILD_COOP
-BUILD_PASTURE
+competitive information
 ```
 
-should not necessarily receive a negative reward simply because cash decreases.
-
----
-
-## 35.4 How should delayed effects be attributed?
-
-For example:
+has a dedicated semantic source:
 
 ```text
-PLANT
+StrategicExpert
 ```
 
-may only become profitable much later.
-
-The system must determine how much of the future reward belongs to the planting action.
-
 ---
 
-## 35.5 How should multiple actions share one result?
+# 30. Reward must remain deterministic initially
 
-If five actions are necessary to produce one harvest, how should the reward be distributed among them?
-
----
-
-## 35.6 How should failed strategies be represented?
-
-Losing games are potentially valuable.
-
-A failed investment sequence may teach the model:
+Given:
 
 ```text
-what not to do
+state_t
+action_t
+state_t+1
 ```
 
-Therefore both successful and unsuccessful trajectories should potentially contribute to training.
+the reward calculation should initially be deterministic.
 
----
-
-## 35.7 Should reward depend on the final game result?
-
-Current hypothesis:
-
-```text
-Not necessarily.
-```
-
-The final result can remain an evaluation metric without being the primary reward.
-
----
-
-# 36. Initial design principles
-
-The current brainstorming suggests the following principles.
-
-### Principle 1
-
-**Do not use absolute liquidity as the target.**
-
----
-
-### Principle 2
-
-**Do not assign the entire reward to the final action.**
-
----
-
-### Principle 3
-
-**Evaluate state transitions, not only final states.**
-
----
-
-### Principle 4
-
-**Distinguish cash movement from economic gain or loss.**
-
----
-
-### Principle 5
-
-**Investments that reduce liquidity are not automatically bad.**
-
----
-
-### Principle 6
-
-**Net worth and liquidity should be evaluated together.**
-
----
-
-### Principle 7
-
-**Use normalized/relative changes where appropriate.**
-
----
-
-### Principle 8
-
-**Delayed consequences must be considered.**
-
----
-
-### Principle 9
-
-**Reward attribution should consider causal contribution, not only temporal distance.**
-
----
-
-### Principle 10
-
-**The first reward engine should be deterministic and explainable.**
-
----
-
-### Principle 11
-
-**Business Experts provide the semantic information needed by the reward engine.**
-
----
-
-### Principle 12
-
-**The reward engine should remain independent from the final ML/RL algorithm.**
-
----
-
-# 37. Current working hypothesis
-
-The current working hypothesis can be summarized as:
-
-```text
-The target is not:
-
-    "How much money did the farm finish with?"
-
-The target is not necessarily:
-
-    "Did the farm win?"
-
-The target is closer to:
-
-    "How much did this decision contribute to improving
-     the economic and productive trajectory of the farm?"
-```
+The same transition should produce the same reward.
 
 Therefore:
 
 ```text
-                    ACTION
-                       │
-                       ▼
-              State transition
-                       │
-                       ▼
-          Economic / operational impact
-                       │
-                       ▼
-             Reward calculation
-                       │
-                       ▼
-             Credit assignment
-                       │
-                       ▼
-            Action quality signal
+reward_engine(
+    state_t,
+    action_t,
+    state_t+1
+)
+```
+
+should be reproducible.
+
+The StrategicExpert should also initially be deterministic.
+
+Machine learning should learn from the resulting signal, not determine the reward itself.
+
+---
+
+# 31. Updated architecture
+
+The conceptual architecture is now:
+
+```text
+                    GAME OBSERVATION
+                           │
+                           ▼
+                   Business Experts
+                           │
+       ┌───────────┬───────┼────────┬───────────┐
+       │           │       │        │           │
+       ▼           ▼       ▼        ▼           ▼
+   Financial   Agriculture Livestock Inventory Market
+       │           │       │        │           │
+       └───────────┴───────┴────────┴───────────┘
+                           │
+                           ▼
+                     Operations
+                           │
+                           ▼
+                      Strategic
+                        Expert
+                           │
+                           ▼
+                    Semantic State
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+         Own state              Opponent public state
+             │                           │
+             └─────────────┬─────────────┘
+                           ▼
+                    State Transition
+                           │
+                           ▼
+                     Reward Engine
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+       Own progress            Competitive progress
+             │                           │
+             └─────────────┬─────────────┘
+                           ▼
+                     Reward Signal
+                           │
+                           ▼
+                  Credit Assignment
+                           │
+                           ▼
+                  Training Dataset
+                           │
+                           ▼
+                       ML / RL
+                           │
+                           ▼
+                         ACTION
 ```
 
 ---
 
-# 38. Next development phase
+# 32. Important architectural distinction
 
-Before implementing the final reward function, the following steps should be performed.
+The architecture now contains four conceptually different layers.
 
-## Step 1 — Define state deltas
+## Business Experts
 
-Identify exactly which features are compared between:
+Answer:
+
+> **What happened?**
+
+Examples:
+
+```text
+FinancialExpert
+AgricultureExpert
+LivestockExpert
+InventoryExpert
+MarketExpert
+OperationsExpert
+StrategicExpert
+```
+
+## Reward Engine
+
+Answers:
+
+> **What was the consequence of the transition?**
+
+## Credit Assignment
+
+Answers:
+
+> **Which previous actions contributed to that consequence?**
+
+## Learning / Decision Model
+
+Answers:
+
+> **Given the current state, which action should be selected?**
+
+Therefore:
+
+```text
+Business Experts
+        ↓
+Semantic understanding
+        ↓
+Reward Engine
+        ↓
+Credit Assignment
+        ↓
+Learning
+        ↓
+Decision
+```
+
+---
+
+# 33. What the StrategicExpert adds
+
+The StrategicExpert introduces something that the previous architecture did not represent explicitly.
+
+Without it:
+
+```text
+Financial state
+Production state
+Operations state
+```
+
+could be evaluated independently.
+
+With it:
+
+```text
+Own state
+    +
+Opponent public state
+    +
+Time
+    +
+Trajectory
+    ↓
+Strategic state
+```
+
+This makes it possible to distinguish:
+
+```text
+"my farm is improving"
+```
+
+from:
+
+```text
+"my farm is improving faster than the opponent"
+```
+
+and:
+
+```text
+"my farm is economically healthy"
+```
+
+from:
+
+```text
+"my farm is economically healthy but strategically falling behind"
+```
+
+These are different pieces of information.
+
+---
+
+# 34. What the StrategicExpert must NOT do
+
+The StrategicExpert should not become a "god expert".
+
+It should NOT:
+
+* manage money
+* calculate accounting
+* manage inventory
+* manage crop state
+* manage animal state
+* manage market prices
+* execute actions
+* calculate the final reward
+* assign credit
+* train ML models
+* decide the final action
+
+Its responsibility is specifically:
+
+> **Represent the current competitive and strategic context using information available to the agent.**
+
+---
+
+# 35. Current open question: how much strategy belongs here?
+
+The existence of a StrategicExpert does not mean that every strategic concept belongs inside it.
+
+A useful boundary is:
+
+```text
+STATE
+```
+
+versus:
+
+```text
+DECISION
+```
+
+The StrategicExpert should primarily represent:
+
+```text
+strategic state
+```
+
+rather than:
+
+```text
+strategic policy
+```
+
+For example:
+
+```text
+relative production = -12%
+```
+
+belongs to StrategicExpert.
+
+But:
+
+```text
+therefore BUY COW
+```
+
+belongs to the decision layer.
+
+This boundary should be preserved.
+
+---
+
+# 36. Updated central hypothesis
+
+The central hypothesis has therefore evolved again.
+
+It is no longer simply:
+
+> **"How much did this action improve the farm?"**
+
+nor:
+
+> **"How much did the farm improve relative to the opponent?"**
+
+It is closer to:
+
+> **"How much did this decision contribute to improving the farm's economic, productive and operational trajectory, and how did it affect the player's strategic position relative to the publicly observable state and trajectory of the opponent?"**
+
+This requires both:
+
+```text
+Business state
+```
+
+and:
+
+```text
+Strategic state
+```
+
+---
+
+# 37. Updated long-term architecture
+
+The long-term architecture is now:
+
+```text
+                         GAME HISTORY
+                              │
+                              ▼
+                       RAW OBSERVATIONS
+                              │
+                              ▼
+                       Business Experts
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+       Own state       Opponent public state   Time/context
+          │                   │                   │
+          └───────────────────┼───────────────────┘
+                              ▼
+                       StrategicExpert
+                              │
+                              ▼
+                       Semantic State
+                              │
+                              ▼
+                       State Transition
+                              │
+                              ▼
+                        Reward Engine
+                              │
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+           Own progress          Competitive progress
+                 │                         │
+                 └────────────┬────────────┘
+                              ▼
+                        Reward Signal
+                              │
+                              ▼
+                       Credit Assignment
+                              │
+                              ▼
+                       Training Dataset
+                              │
+                              ▼
+                           ML / RL
+                              │
+                              ▼
+                           ACTION
+```
+
+The critical restriction remains:
+
+```text
+MODEL INPUT
+    ↓
+ONLY INFORMATION AVAILABLE AT INFERENCE
+```
+
+while:
+
+```text
+HISTORICAL ANALYSIS
+    ↓
+may inspect additional retrospective information
+```
+
+---
+
+# 38. Updated development phase
+
+Before implementing the final reward function:
+
+### Step 1 — Complete the Business Experts
+
+Define exactly what each expert owns:
+
+```text
+Financial
+Agriculture
+Livestock
+Inventory
+Market
+Operations
+Strategic
+```
+
+### Step 2 — Define the semantic state
+
+Determine exactly which features each expert produces.
+
+### Step 3 — Define public opponent information
+
+Verify exactly which opponent variables are observable during real gameplay.
+
+### Step 4 — Implement StrategicExpert
+
+Initially deterministic and descriptive.
+
+It should produce:
+
+```text
+current competitive state
+relative state
+trajectory features
+time context
+```
+
+### Step 5 — Define state deltas
+
+Compare:
 
 ```text
 state_t
 ```
 
-and:
+with:
 
 ```text
 state_t+1
 ```
 
----
+### Step 6 — Define own economic transitions
 
-## Step 2 — Define economic transition categories
-
-Create deterministic rules for cases such as:
+For example:
 
 ```text
 liquidity ↓ / net_worth ≈
 liquidity ↓ / net_worth ↑
 liquidity ↓ / net_worth ↓
 liquidity ↑ / net_worth ↑
-liquidity ↑ / net_worth ≈
-liquidity ↑ / net_worth ↓
+...
 ```
 
----
+### Step 7 — Define competitive transitions
 
-## Step 3 — Identify causal action chains
+For example:
+
+```text
+relative position ↑
+relative position ≈
+relative position ↓
+```
+
+together with:
+
+```text
+economic
+production
+expansion
+```
+
+where meaningful.
+
+### Step 8 — Identify causal action chains
 
 Examples:
 
@@ -1720,46 +1788,56 @@ seed → planting → care → harvest → sale
 animal → placement → care → production → sale
 ```
 
----
+### Step 9 — Define reward attribution
 
-## Step 4 — Define reward attribution
+Determine how consequences should be distributed among contributing actions.
 
-Determine how a final improvement is distributed among the actions that contributed to it.
+### Step 10 — Define temporal horizons
 
----
+Different action classes may require different horizons.
 
-## Step 5 — Normalize the reward
+### Step 11 — Normalize the reward
 
-Determine an appropriate reward scale, for example:
+Determine an appropriate scale.
 
-```text
-[-1, +1]
-```
+### Step 12 — Reconstruct historical rewards
 
-or another normalized range.
+Apply the deterministic system to real trajectories.
 
----
-
-## Step 6 — Test on historical games
-
-Apply the deterministic reward engine to real historical trajectories.
-
-Do not train a model yet.
-
-First inspect:
+Inspect:
 
 ```text
-reward distribution
 reward by action
+reward by action chain
 reward by game
-reward by winning/losing game
+reward by winner/loser
+own-progress reward
+competitive-progress reward
 ```
 
----
+### Step 13 — Validate information availability
 
-## Step 7 — Validate against human reasoning
+Ensure that every model feature was actually available at inference time.
 
-Inspect whether the reward system agrees with obvious examples:
+### Step 14 — Validate strategic reasoning
+
+Inspect cases such as:
+
+```text
+economically positive + competitively positive
+
+economically positive + competitively insufficient
+
+economically neutral + strategically valuable
+
+economically negative + strategically justified investment
+
+economically negative + strategically negative action
+```
+
+### Step 15 — Validate against human reasoning
+
+Inspect obvious cases:
 
 ```text
 good investment
@@ -1768,41 +1846,52 @@ productive action
 wasted action
 successful production chain
 failed production chain
+good action inside a losing game
+bad action inside a winning game
 ```
 
----
+### Step 16 — Compare reward with final result
 
-## Step 8 — Only then select the learning strategy
+Measure whether action-level rewards provide useful information without simply reproducing:
 
-After the reward signal is stable, decide whether to use:
+```text
+WIN = good
+LOSS = bad
+```
+
+### Step 17 — Only then select the learning strategy
+
+Consider:
 
 ```text
 supervised learning
-```
-
-or:
-
-```text
 reinforcement learning
+hybrid learning
 ```
-
-or potentially a hybrid approach.
 
 ---
 
 # 39. Final conceptual objective
 
-The long-term objective is to create a learning system that does not merely memorize:
+The long-term objective is not to create a model that merely memorizes:
 
 ```text
 "winning games look like this"
 ```
 
-but learns:
+The objective is to create a model capable of learning:
 
 ```text
 "given this state,
-this action tends to improve the farm's future position."
+this action tends to improve my future position."
+```
+
+and eventually:
+
+```text
+"given this state and the observable state and trajectory
+of the opponent, this action tends to improve my future
+position and my ability to achieve the competitive objective."
 ```
 
 The desired learning process is therefore:
@@ -1810,11 +1899,17 @@ The desired learning process is therefore:
 ```text
 OBSERVATION
     ↓
-UNDERSTANDING
+BUSINESS UNDERSTANDING
+    ↓
+STRATEGIC UNDERSTANDING
     ↓
 ACTION
     ↓
 CONSEQUENCE
+    ↓
+OWN PROGRESS
+    +
+COMPETITIVE PROGRESS
     ↓
 REWARD
     ↓
@@ -1825,8 +1920,12 @@ LEARNING
 BETTER ACTION
 ```
 
-The central research question is:
+The central research question is now:
 
-> **Can a deterministic, explainable reward and credit-assignment mechanism transform historical Kaggriculture trajectories into a meaningful learning signal without relying exclusively on the final game outcome?**
+> **Can a deterministic, explainable reward and credit-assignment mechanism transform historical Kaggriculture trajectories into a meaningful action-quality signal that captures economic progress, delayed consequences and competitive position, while using only information that will actually be available at inference time?**
 
-This question should be answered experimentally before committing to the final ML/RL architecture.
+And an architectural question precedes it:
+
+> **Can a dedicated StrategicExpert provide a deterministic and useful representation of competitive state without turning the Business Expert layer into a decision-making system?**
+
+That should be tested experimentally before introducing ML/RL into the strategic layer.
