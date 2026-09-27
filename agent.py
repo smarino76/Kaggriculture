@@ -1,7 +1,8 @@
-from experts.business import FinancialExpert, AgricultureExpert, InventoryExpert, MarketExpert
-
+from experts.business import FinancialExpert, AgricultureExpert, InventoryExpert, MarketExpert, LivestockExpert
+from pathlib import Path
 
 market_expert = MarketExpert()
+DEBUG_LOG_PATH = Path(__file__).with_name("agent_debug.log")
     
 def agent(obs):
     player = obs["player"]
@@ -16,12 +17,30 @@ def agent(obs):
     financial_expert = FinancialExpert(player=player)
     agriculture_expert = AgricultureExpert(player=player)
     inventory_expert = InventoryExpert(player=player)
-
+    live_stock_expert = LivestockExpert(player=player)
+    
     financial_expert.process_observation(obs)
     agriculture_expert.process_observation(obs)
     inventory_expert.process_observation(obs)
     market_expert.process_observation(obs)
-    print(f"Market: {market_expert.get_features()}")
+    live_stock_expert.process_observation(obs)
+
+    def finish_action(farmer_action, market_actions=None):
+        action = {
+            "farmer": farmer_action,
+            "hands": [],
+            "market": market_actions if market_actions is not None else [],
+        }
+        debug_output = (
+            f"STEP: {obs['step']}\n"
+            f"DAY: {obs['day']}\n"
+            f"ACTION: {action}\n"
+            f"LIVESTOCK: {live_stock_expert.get_features()}"
+        )
+        print(debug_output, flush=True)
+        with DEBUG_LOG_PATH.open("a", encoding="utf-8") as log_file:
+            log_file.write(debug_output + "\n\n")
+        return action
 
     market = []
 
@@ -79,32 +98,20 @@ def agent(obs):
         if (fx, fy) in [(4, 4), (5, 4), (4, 5), (5, 5)]:
            # print(f"observacion antes de return PICKUP COW: {obs}")
             
-            return {
-                "farmer": ["PICKUP", "COW", 1],
-                "hands": [],
-                "market": market
-            }
+            return finish_action(["PICKUP", "COW", 1], market)
 
     # 2. We are standing on an empty tile and have a cow.
     #    Build the pasture first.
     if tile is None and cows_in_inventory > 0:
         #print(f"observacion antes de return BUILD_PASTURE: {obs}")
  
-        return {            
-            "farmer": ["BUILD_PASTURE"],
-            "hands": [],
-            "market": market
-        }
+        return finish_action(["BUILD_PASTURE"], market)
 
     # 3. We are standing on a pasture and have a cow
     #    in the farmer inventory.
     if is_pasture and cows_in_inventory > 0:
         #print(f"observacion antes de return PLACE COW: {obs}")
-        return {
-            "farmer": ["PLACE", "COW"],
-            "hands": [],
-            "market": market
-        }
+        return finish_action(["PLACE", "COW"], market)
 
     # ---------------------------------------------------------
     # WHEAT
@@ -112,11 +119,7 @@ def agent(obs):
 
     # Empty tile -> plant wheat.
     if tile is None and private["seeds"].get("WHEAT", 0) > 0:
-        return {
-            "farmer": ["PLANT", "WHEAT"],
-            "hands": [],
-            "market": market
-        }
+        return finish_action(["PLANT", "WHEAT"], market)
 
     # Plant -> water or harvest.
     if isinstance(tile, dict) and tile.get("kind") == "PLANT":
@@ -124,25 +127,13 @@ def agent(obs):
         crop_age = obs["day"] - tile["planted_day"]
 
         if crop_age >= 2:
-            return {
-                "farmer": ["HARVEST"],
-                "hands": [],
-                "market": market
-            }
+            return finish_action(["HARVEST"], market)
 
         if not tile["watered_today"]:
-            return {
-                "farmer": ["WATER"],
-                "hands": [],
-                "market": market
-            }
+            return finish_action(["WATER"], market)
 
     # ---------------------------------------------------------
     # DEFAULT
     # ---------------------------------------------------------
 
-    return {
-        "farmer": ["PASS"],
-        "hands": [],
-        "market": market
-    }
+    return finish_action(["PASS"], market)

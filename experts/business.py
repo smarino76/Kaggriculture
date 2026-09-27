@@ -3561,8 +3561,311 @@ class AgricultureExpert:
 
 
 class LivestockExpert:
-    def __init__(self):
-        pass
+    """
+    LivestockExpert
+    ===============
+    Expert responsible for analyzing the current livestock state
+    of the player's farm.
+
+    Responsibilities
+    ----------------
+    - Detect animals currently placed on the farm.
+    - Detect animals stored in the shed.
+    - Detect animals carried in inventories.
+    - Count total animals.
+    - Track animal location.
+    - Track animal age.
+    - Track production/yield information.
+    - Track feeding status.
+    - Track care status.
+    - Track fertilizer availability.
+    - Track pending care bonuses.
+
+    This expert analyzes only the current observation.
+
+    It does NOT:
+    - Buy animals.
+    - Sell animals.
+    - Feed animals.
+    - Care for animals.
+    - Decide actions.
+    - Calculate profitability.
+    - Calculate financial value.
+    - Manage physical inventory.
+    """
+
+    def __init__(self, player=0):
+
+        self.player = player
+
+        # -------------------------------------------------
+        # General animal collections
+        # -------------------------------------------------
+
+        self.animals = {}
+
+        self.placed_animals = {}
+        self.shed_animals = {}
+        self.carried_animals = {}
+
+        self.total_animals = 0
+
+        # Detailed information about placed animals
+        self.animal_details = []
+
+    # -----------------------------------------------------
+    # PROCESS OBSERVATION
+    # -----------------------------------------------------
+
+    def process_observation(self, obs):
+        """
+        Process the current observation and reconstruct
+        the livestock state of the player's farm.
+        """
+
+        self._reset_state()
+
+        me = obs["farms"][self.player]
+        private = obs["private"]
+
+        day = obs.get("day", 0)
+
+        # -------------------------------------------------
+        # 1. Animals in shed
+        # -------------------------------------------------
+
+        shed = private.get("shed", {})
+
+        for animal, quantity in shed.items():
+
+            if animal not in self._animal_types():
+                continue
+
+            quantity = int(quantity)
+
+            if quantity <= 0:
+                continue
+
+            self.shed_animals[animal] = quantity
+
+            self._add_animal(
+                self.animals,
+                animal,
+                quantity
+            )
+
+        # -------------------------------------------------
+        # 2. Animals in inventories
+        # -------------------------------------------------
+
+        inventories = private.get("inventories", [])
+
+        for inventory in inventories:
+
+            if not isinstance(inventory, dict):
+                continue
+
+            for animal, quantity in inventory.items():
+
+                if animal not in self._animal_types():
+                    continue
+
+                quantity = int(quantity)
+
+                if quantity <= 0:
+                    continue
+
+                self.carried_animals[animal] = (
+                    self.carried_animals.get(animal, 0)
+                    + quantity
+                )
+
+                self._add_animal(
+                    self.animals,
+                    animal,
+                    quantity
+                )
+
+        # -------------------------------------------------
+        # 3. Animals placed on the farm
+        # -------------------------------------------------
+
+        tiles = me.get("tiles", [])
+
+        for y, row in enumerate(tiles):
+
+            if not isinstance(row, list):
+                continue
+
+            for x, tile in enumerate(row):
+
+                if not isinstance(tile, dict):
+                    continue
+
+                animal = tile.get("animal")
+
+                if animal not in self._animal_types():
+                    continue
+
+                self.placed_animals[animal] = (
+                    self.placed_animals.get(animal, 0)
+                    + 1
+                )
+
+                self._add_animal(
+                    self.animals,
+                    animal,
+                    1
+                )
+
+                placed_day = tile.get("placed_day")
+
+                if placed_day is not None:
+                    age_days = max(
+                        0,
+                        day - placed_day
+                    )
+                else:
+                    age_days = None
+
+                self.animal_details.append(
+                    {
+                        "animal": animal,
+                        "location": tile.get("kind"),
+                        "x": x,
+                        "y": y,
+                        "placed_day": placed_day,
+                        "age_days": age_days,
+                        "yield_units": tile.get(
+                            "yield_units",
+                            0
+                        ),
+                        "consecutive_unfed": tile.get(
+                            "consecutive_unfed",
+                            0
+                        ),
+                        "fed_today": tile.get(
+                            "fed_today",
+                            False
+                        ),
+                        "cared_today": tile.get(
+                            "cared_today",
+                            False
+                        ),
+                        "fertilizer_available": tile.get(
+                            "fertilizer_available",
+                            False
+                        ),
+                        "pending_care_bonus": tile.get(
+                            "pending_care_bonus",
+                            0
+                        ),
+                    }
+                )
+
+        # -------------------------------------------------
+        # 4. Total
+        # -------------------------------------------------
+
+        self.total_animals = sum(
+            self.animals.values()
+        )
+
+    # -----------------------------------------------------
+    # RESET
+    # -----------------------------------------------------
+
+    def _reset_state(self):
+
+        self.animals = {}
+
+        self.placed_animals = {}
+        self.shed_animals = {}
+        self.carried_animals = {}
+
+        self.total_animals = 0
+
+        self.animal_details = []
+
+    # -----------------------------------------------------
+    # ANIMAL TYPES
+    # -----------------------------------------------------
+
+    def _animal_types(self):
+
+        return {
+            "GOOSE",
+            "COW",
+            "SHEEP",
+        }
+
+    # -----------------------------------------------------
+    # ADD ANIMAL
+    # -----------------------------------------------------
+
+    def _add_animal(
+        self,
+        collection,
+        animal,
+        quantity
+    ):
+
+        collection[animal] = (
+            collection.get(animal, 0)
+            + quantity
+        )
+
+    # -----------------------------------------------------
+    # GETTERS
+    # -----------------------------------------------------
+
+    def get_total_animals(self):
+
+        return self.total_animals
+
+    def get_placed_animals(self):
+
+        return self.placed_animals.copy()
+
+    def get_shed_animals(self):
+
+        return self.shed_animals.copy()
+
+    def get_carried_animals(self):
+
+        return self.carried_animals.copy()
+
+    def get_animal_details(self):
+
+        return self.animal_details.copy()
+
+    # -----------------------------------------------------
+    # FEATURES
+    # -----------------------------------------------------
+
+    def get_features(self):
+
+        return {
+            "animals": self.animals.copy(),
+
+            "placed_animals": (
+                self.placed_animals.copy()
+            ),
+
+            "shed_animals": (
+                self.shed_animals.copy()
+            ),
+
+            "carried_animals": (
+                self.carried_animals.copy()
+            ),
+
+            "total_animals": self.total_animals,
+
+            "animal_details": (
+                self.animal_details.copy()
+            ),
+        }
 
 
 class InventoryExpert:
