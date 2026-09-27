@@ -3559,39 +3559,42 @@ class AgricultureExpert:
 
 
 
-
 class LivestockExpert:
     """
     LivestockExpert
     ===============
-    Expert responsible for analyzing the current livestock state
-    of the player's farm.
 
-    Responsibilities
-    ----------------
-    - Detect animals currently placed on the farm.
-    - Detect animals stored in the shed.
-    - Detect animals carried in inventories.
-    - Count total animals.
-    - Track animal location.
-    - Track animal age.
-    - Track production/yield information.
-    - Track feeding status.
-    - Track care status.
-    - Track fertilizer availability.
-    - Track pending care bonuses.
+    Experto encargado de analizar el estado actual del ganado
+    de la granja del jugador.
 
-    This expert analyzes only the current observation.
+    Responsabilidades
+    -----------------
+    - Detectar los animales colocados en la granja.
+    - Detectar los animales almacenados en el cobertizo.
+    - Detectar los animales transportados en los inventarios.
+    - Contar la cantidad total de animales.
+    - Registrar la ubicación de cada animal.
+    - Calcular la edad de los animales colocados.
+    - Registrar la información de producción.
+    - Registrar el estado de alimentación.
+    - Determinar si un animal necesita ser alimentado.
+    - Registrar el estado de cuidado.
+    - Registrar la disponibilidad de fertilizante.
+    - Registrar los bonus de cuidado pendientes.
 
-    It does NOT:
-    - Buy animals.
-    - Sell animals.
-    - Feed animals.
-    - Care for animals.
-    - Decide actions.
-    - Calculate profitability.
-    - Calculate financial value.
-    - Manage physical inventory.
+    Este experto analiza únicamente la observación actual.
+
+    NO es responsabilidad de este experto:
+    - Comprar animales.
+    - Vender animales.
+    - Alimentar animales.
+    - Cuidar animales.
+    - Decidir acciones.
+    - Calcular rentabilidad.
+    - Calcular valor económico de los animales.
+    - Gestionar el inventario físico.
+    - Calcular recompensas.
+    - Mantener historial entre observaciones.
     """
 
     def __init__(self, player=0):
@@ -3599,30 +3602,52 @@ class LivestockExpert:
         self.player = player
 
         # -------------------------------------------------
-        # General animal collections
+        # Colecciones generales de animales
         # -------------------------------------------------
 
+        # Cantidad total de cada tipo de animal.
+        #
+        # Ejemplo:
+        # {
+        #     "COW": 2,
+        #     "SHEEP": 1
+        # }
         self.animals = {}
 
+        # Animales actualmente colocados en la granja.
         self.placed_animals = {}
+
+        # Animales almacenados en el cobertizo.
         self.shed_animals = {}
+
+        # Animales que se encuentran en los inventarios
+        # y están siendo transportados.
         self.carried_animals = {}
 
+        # Cantidad total de animales.
         self.total_animals = 0
 
-        # Detailed information about placed animals
+        # Información detallada de cada animal colocado
+        # en una casilla de la granja.
         self.animal_details = []
 
     # -----------------------------------------------------
-    # PROCESS OBSERVATION
+    # PROCESAR OBSERVACIÓN
     # -----------------------------------------------------
 
     def process_observation(self, obs):
         """
-        Process the current observation and reconstruct
-        the livestock state of the player's farm.
+        Procesa la observación actual y reconstruye el estado
+        actual del ganado de la granja del jugador.
+
+        Este método NO modifica el entorno del juego.
+        Solamente lee la observación y genera información
+        semántica sobre el ganado.
         """
 
+        # La clase representa un snapshot de la observación
+        # actual, por lo que primero eliminamos el estado
+        # calculado anteriormente.
         self._reset_state()
 
         me = obs["farms"][self.player]
@@ -3631,13 +3656,15 @@ class LivestockExpert:
         day = obs.get("day", 0)
 
         # -------------------------------------------------
-        # 1. Animals in shed
+        # 1. ANIMALES EN EL COBERTIZO
         # -------------------------------------------------
 
         shed = private.get("shed", {})
 
         for animal, quantity in shed.items():
 
+            # Ignoramos cualquier elemento del cobertizo
+            # que no sea un animal conocido.
             if animal not in self._animal_types():
                 continue
 
@@ -3646,8 +3673,10 @@ class LivestockExpert:
             if quantity <= 0:
                 continue
 
+            # Guardamos la cantidad por tipo.
             self.shed_animals[animal] = quantity
 
+            # También actualizamos el total general.
             self._add_animal(
                 self.animals,
                 animal,
@@ -3655,7 +3684,7 @@ class LivestockExpert:
             )
 
         # -------------------------------------------------
-        # 2. Animals in inventories
+        # 2. ANIMALES EN LOS INVENTARIOS
         # -------------------------------------------------
 
         inventories = private.get("inventories", [])
@@ -3667,6 +3696,7 @@ class LivestockExpert:
 
             for animal, quantity in inventory.items():
 
+                # Ignoramos elementos que no sean animales.
                 if animal not in self._animal_types():
                     continue
 
@@ -3675,11 +3705,14 @@ class LivestockExpert:
                 if quantity <= 0:
                     continue
 
+                # Los animales encontrados en los inventarios
+                # se consideran animales transportados.
                 self.carried_animals[animal] = (
                     self.carried_animals.get(animal, 0)
                     + quantity
                 )
 
+                # Actualizamos también el total general.
                 self._add_animal(
                     self.animals,
                     animal,
@@ -3687,11 +3720,12 @@ class LivestockExpert:
                 )
 
         # -------------------------------------------------
-        # 3. Animals placed on the farm
+        # 3. ANIMALES COLOCADOS EN LA GRANJA
         # -------------------------------------------------
 
         tiles = me.get("tiles", [])
 
+        # Recorremos toda la superficie de la granja.
         for y, row in enumerate(tiles):
 
             if not isinstance(row, list):
@@ -3702,69 +3736,159 @@ class LivestockExpert:
                 if not isinstance(tile, dict):
                     continue
 
+                # Si la casilla contiene un animal,
+                # "animal" identifica su tipo.
                 animal = tile.get("animal")
 
                 if animal not in self._animal_types():
                     continue
+
+                # -----------------------------------------
+                # Cantidad de animales colocados
+                # -----------------------------------------
 
                 self.placed_animals[animal] = (
                     self.placed_animals.get(animal, 0)
                     + 1
                 )
 
+                # Actualizamos el total general.
                 self._add_animal(
                     self.animals,
                     animal,
                     1
                 )
 
+                # -----------------------------------------
+                # Edad del animal
+                # -----------------------------------------
+
                 placed_day = tile.get("placed_day")
 
                 if placed_day is not None:
+
+                    # Edad expresada en días desde que
+                    # el animal fue colocado.
                     age_days = max(
                         0,
                         day - placed_day
                     )
+
                 else:
+
                     age_days = None
+
+                # -----------------------------------------
+                # Estado de alimentación
+                # -----------------------------------------
+
+                consecutive_unfed = tile.get(
+                    "consecutive_unfed",
+                    0
+                )
+
+                fed_today = tile.get(
+                    "fed_today",
+                    False
+                )
+
+                # Si todavía no fue alimentado hoy,
+                # el animal necesita alimentación.
+                #
+                # Esto es una observación semántica.
+                # NO significa que este experto vaya
+                # a ejecutar la acción FEED.
+                needs_feed = not fed_today
+
+                # -----------------------------------------
+                # Estado de cuidado
+                # -----------------------------------------
+
+                cared_today = tile.get(
+                    "cared_today",
+                    False
+                )
+
+                pending_care_bonus = tile.get(
+                    "pending_care_bonus",
+                    0
+                )
+
+                # -----------------------------------------
+                # Estado de producción
+                # -----------------------------------------
+
+                yield_units = tile.get(
+                    "yield_units",
+                    0
+                )
+
+                fertilizer_available = tile.get(
+                    "fertilizer_available",
+                    False
+                )
+
+                # -----------------------------------------
+                # Guardar información detallada
+                # -----------------------------------------
 
                 self.animal_details.append(
                     {
+                        # Tipo de animal
                         "animal": animal,
-                        "location": tile.get("kind"),
+
+                        # Tipo de casilla:
+                        # PASTURE, COOP, etc.
+                        "location": tile.get(
+                            "kind"
+                        ),
+
+                        # Posición dentro de la granja
                         "x": x,
                         "y": y,
+
+                        # Día en que fue colocado
                         "placed_day": placed_day,
+
+                        # Edad calculada
                         "age_days": age_days,
-                        "yield_units": tile.get(
-                            "yield_units",
-                            0
+
+                        # Producción acumulada/disponible
+                        # indicada por el entorno.
+                        "yield_units": yield_units,
+
+                        # Cantidad de días consecutivos
+                        # sin alimentación.
+                        "consecutive_unfed": (
+                            consecutive_unfed
                         ),
-                        "consecutive_unfed": tile.get(
-                            "consecutive_unfed",
-                            0
+
+                        # Indica si fue alimentado hoy.
+                        "fed_today": fed_today,
+
+                        # Estado semántico derivado:
+                        # True si todavía necesita
+                        # alimentación durante el día.
+                        "needs_feed": needs_feed,
+
+                        # Indica si recibió cuidado hoy.
+                        "cared_today": cared_today,
+
+                        # Indica si existe fertilizante
+                        # disponible para recoger.
+                        "fertilizer_available": (
+                            fertilizer_available
                         ),
-                        "fed_today": tile.get(
-                            "fed_today",
-                            False
-                        ),
-                        "cared_today": tile.get(
-                            "cared_today",
-                            False
-                        ),
-                        "fertilizer_available": tile.get(
-                            "fertilizer_available",
-                            False
-                        ),
-                        "pending_care_bonus": tile.get(
-                            "pending_care_bonus",
-                            0
+
+                        # Bonus de cuidado pendiente.
+                        "pending_care_bonus": (
+                            pending_care_bonus
                         ),
                     }
                 )
 
         # -------------------------------------------------
-        # 4. Total
+        # 4. CANTIDAD TOTAL DE ANIMALES
         # -------------------------------------------------
 
         self.total_animals = sum(
@@ -3772,10 +3896,14 @@ class LivestockExpert:
         )
 
     # -----------------------------------------------------
-    # RESET
+    # REINICIAR ESTADO
     # -----------------------------------------------------
 
     def _reset_state(self):
+        """
+        Reinicia todas las estructuras calculadas
+        a partir de la observación anterior.
+        """
 
         self.animals = {}
 
@@ -3788,10 +3916,14 @@ class LivestockExpert:
         self.animal_details = []
 
     # -----------------------------------------------------
-    # ANIMAL TYPES
+    # TIPOS DE ANIMALES
     # -----------------------------------------------------
 
     def _animal_types(self):
+        """
+        Devuelve los tipos de animales reconocidos
+        por el experto.
+        """
 
         return {
             "GOOSE",
@@ -3800,7 +3932,7 @@ class LivestockExpert:
         }
 
     # -----------------------------------------------------
-    # ADD ANIMAL
+    # AGREGAR ANIMAL
     # -----------------------------------------------------
 
     def _add_animal(
@@ -3809,6 +3941,20 @@ class LivestockExpert:
         animal,
         quantity
     ):
+        """
+        Agrega una cantidad de animales a una colección.
+
+        Ejemplo:
+
+        Si tenemos:
+            {"COW": 2}
+
+        y agregamos:
+            COW, 1
+
+        obtenemos:
+            {"COW": 3}
+        """
 
         collection[animal] = (
             collection.get(animal, 0)
@@ -3820,22 +3966,41 @@ class LivestockExpert:
     # -----------------------------------------------------
 
     def get_total_animals(self):
+        """
+        Devuelve la cantidad total de animales.
+        """
 
         return self.total_animals
 
     def get_placed_animals(self):
+        """
+        Devuelve la cantidad de animales colocados
+        en la granja, agrupados por tipo.
+        """
 
         return self.placed_animals.copy()
 
     def get_shed_animals(self):
+        """
+        Devuelve la cantidad de animales almacenados
+        en el cobertizo.
+        """
 
         return self.shed_animals.copy()
 
     def get_carried_animals(self):
+        """
+        Devuelve la cantidad de animales que se encuentran
+        en los inventarios.
+        """
 
         return self.carried_animals.copy()
 
     def get_animal_details(self):
+        """
+        Devuelve la información detallada de los animales
+        colocados en la granja.
+        """
 
         return self.animal_details.copy()
 
@@ -3844,28 +4009,46 @@ class LivestockExpert:
     # -----------------------------------------------------
 
     def get_features(self):
+        """
+        Devuelve el estado semántico del ganado.
+
+        Estas features describen el estado actual.
+        No contienen decisiones ni acciones.
+        """
 
         return {
-            "animals": self.animals.copy(),
+            # Cantidad total por tipo de animal.
+            "animals": (
+                self.animals.copy()
+            ),
 
+            # Animales colocados en la granja.
             "placed_animals": (
                 self.placed_animals.copy()
             ),
 
+            # Animales almacenados en el cobertizo.
             "shed_animals": (
                 self.shed_animals.copy()
             ),
 
+            # Animales transportados en inventarios.
             "carried_animals": (
                 self.carried_animals.copy()
             ),
 
-            "total_animals": self.total_animals,
+            # Cantidad total de animales.
+            "total_animals": (
+                self.total_animals
+            ),
 
+            # Información detallada de cada animal colocado.
             "animal_details": (
                 self.animal_details.copy()
             ),
         }
+
+
 
 
 class InventoryExpert:
