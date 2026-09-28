@@ -1,0 +1,114 @@
+STEP: 330
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 331
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 332
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 333
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 334
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 335
+DAY: 13
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+ANIMAL: COW
+POS: (4, 4)
+TILE: {'kind': 'PASTURE', 'animal': 'COW', 'placed_day': 12, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}
+
+LIVESTOCK EXPERT:
+{'animals': {'COW': 1}, 'placed_animals': {'COW': 1}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 1, 'animal_details': [{'animal': 'COW', 'location': 'PASTURE', 'x': 4, 'y': 4, 'placed_day': 12, 'age_days': 1, 'yield_units': 0, 'consecutive_unfed': 1, 'fed_today': False, 'needs_feed': True, 'cared_today': False, 'fertilizer_available': True, 'pending_care_bonus': 0}]}
+
+STEP: 336
+DAY: 14
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+LIVESTOCK EXPERT:
+{'animals': {}, 'placed_animals': {}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 0, 'animal_details': []}
+
+STEP: 337
+DAY: 14
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+LIVESTOCK EXPERT:
+{'animals': {}, 'placed_animals': {}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 0, 'animal_details': []}
+
+STEP: 338
+DAY: 14
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+LIVESTOCK EXPERT:
+{'animals': {}, 'placed_animals': {}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 0, 'animal_details': []}
+
+STEP: 339
+DAY: 14
+MONEY: 190.0
+SHED: {'WHEAT': 0, 'CARROT': 0, 'TOMATO': 0, 'STRAWBERRY': 0, 'MELON': 0, 'EGG': 0, 'MILK': 0, 'WOOL': 0, 'FERTILIZER': 0, 'GOOSE': 0, 'COW': 0, 'SHEEP': 0}
+INVENTORIES: [{}]
+
+LIVESTOCK EXPERT:
+{'animals': {}, 'placed_animals': {}, 'shed_animals': {}, 'carried_animals': {}, 'total_animals': 0, 'animal_details': []}
+

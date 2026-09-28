@@ -6,6 +6,7 @@ from experts.business import (
     LivestockExpert,
 )
 from pathlib import Path
+from models.layers.semantic import SemanticState
 
 
 market_expert = MarketExpert()
@@ -36,12 +37,19 @@ def agent(obs):
     inventory_expert = InventoryExpert(player=player)
     livestock_expert = LivestockExpert(player=player)
 
+    semantic = SemanticState(livestock_expert=livestock_expert, market_expert=market_expert, inventory_expert=inventory_expert, financial_expert=financial_expert, agriculture_expert=agriculture_expert)
+    
+    
     financial_expert.process_observation(obs)
     agriculture_expert.process_observation(obs)
     inventory_expert.process_observation(obs)
     market_expert.process_observation(obs)
     livestock_expert.process_observation(obs)
-
+    semantic.process()
+    
+    with open("semantic.log","w") as f:
+        f.write(f"Semantic: {semantic.get_features()}\n")
+    
     # ---------------------------------------------------------
     # DEBUG
     # ---------------------------------------------------------
