@@ -1,6 +1,6 @@
 # Semantic Pattern Space — Kaggriculture
 
-> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` está implementado actualmente como un esqueleto con categorías vacías; ningún patrón de este documento se considera implementado por aparecer aquí.
+> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` implementa actualmente `situations.livestock_present`, `situations.production_ready`, `situations.livestock_attention`, `situations.farm_capacity_state`, `relationships.production_storage_relationship`, `relationships.inventory_market_relationship`, `relationships.production_market_relationship`, `risks.storage_pressure` y `risks.production_storage_risk`; ningún otro patrón de este documento se considera implementado por aparecer aquí.
 
 ## 1. Purpose
 
@@ -23,6 +23,23 @@ Su objetivo es explorar de forma sistemática las combinaciones de información 
 El espacio de patrones puede ser deliberadamente más amplio que el conjunto final de features implementadas.
 
 Los patrones deberán ser posteriormente validados antes de entrar en `SemanticState`.
+
+## Contrato de salida de SemanticState
+
+El formato externo de salida ya está aprobado y se define en `Semantic contract.md`. Toda feature candidata que supere la validación deberá usar la envoltura común:
+
+```python
+{
+    "<category>": {
+        "<feature_name>": {
+            "value": ...,
+            "details": {...},
+        },
+    },
+}
+```
+
+`<category>` es una de `situations`, `relationships`, `risks` u `opportunities`. El tipo de `value` y el esquema de `details` deben documentarse para cada feature en el contrato antes de implementarla. `value` puede ser booleano para expresar si se cumple una condición, pero no debe ser la única información: `details` conserva las señales y magnitudes necesarias para contextualizar e interpretar el resultado. Cuando las señales sean por producto, `details` conserva esa granularidad bajo `by_product`. La presencia de un patrón en este documento no autoriza su implementación ni define por sí sola el tipo de sus campos.
 
 ---
 

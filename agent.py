@@ -55,7 +55,7 @@ def agent(obs):
     semantic.process()
     
     with open("semantic.log","w") as f:
-        f.write(f"Opponent expert: {semantic.get_features()}\n")
+        f.write(f"Semantic: {semantic.get_features()}\n")
     
     # ---------------------------------------------------------
     # DEBUG
