@@ -5377,3 +5377,1248 @@ class ProductionExpert:
 
 
 
+class OpponentExpert:
+    """
+    Analiza el estado observable del jugador oponente.
+
+    OpponentExpert es un Business Domain Expert cuyo objetivo es
+    transformar la información pública disponible del oponente en
+    datos estructurados y reutilizables por las capas superiores
+    del agente.
+
+    El Expert NO intenta predecir las intenciones o próximas acciones
+    del oponente y NO toma decisiones estratégicas.
+
+    Su responsabilidad se limita a responder:
+
+        "¿Qué podemos observar actualmente del oponente?"
+
+    La información analizada procede exclusivamente de:
+
+        obs["farms"][opponent_player]
+
+    Por tanto, este Expert puede analizar información pública del
+    farm del oponente, pero no debe intentar acceder a la información
+    contenida en:
+
+        obs["private"]
+
+    porque dicha información pertenece al jugador que ejecuta el agente.
+
+    Responsabilidades principales
+    -----------------------------
+
+    1. Identificar quién es el oponente.
+    2. Registrar el dinero observable del oponente.
+    3. Registrar la posición observable del farmer.
+    4. Analizar la superficie del farm.
+    5. Analizar las plantas y cultivos observables.
+    6. Analizar la producción agrícola observable.
+    7. Analizar los animales colocados en el farm.
+    8. Mantener detalles observables de cultivos y animales.
+    9. Exponer la información mediante getters.
+    10. Exponer un conjunto completo de features mediante get_features().
+
+    Fuera de responsabilidad
+    ------------------------
+
+    OpponentExpert NO:
+
+    - predice la próxima acción del oponente;
+    - intenta inferir su intención;
+    - determina su estrategia;
+    - decide qué debería hacer nuestro agente;
+    - calcula acciones recomendadas;
+    - calcula reward;
+    - compara directamente nuestro estado con el suyo;
+    - analiza nuestro estado privado;
+    - accede al inventario privado del oponente;
+    - calcula un net worth completo del oponente cuando faltan
+      sus recursos privados.
+
+    Las comparaciones entre nuestro estado y el del oponente
+    pertenecen a una futura capa de Competitive/Semantic State.
+    """
+
+    # ------------------------------------------------------------------
+    # CONSTANTES
+    # ------------------------------------------------------------------
+
+    ANIMAL_TYPES = ("GOOSE", "COW", "SHEEP")
+    """
+    Tipos de animales reconocidos por OpponentExpert.
+
+    Estos son los tipos de animales que pueden aparecer en el estado
+    observable de los tiles del farm.
+
+    La constante se utiliza para distinguir los animales de otros
+    posibles valores presentes en un tile.
+
+    Tipo:
+        tuple[str, ...]
+
+    Ejemplo:
+        ("GOOSE", "COW", "SHEEP")
+    """
+
+    # ------------------------------------------------------------------
+    # CONSTRUCTOR
+    # ------------------------------------------------------------------
+
+    def __init__(self, player=0):
+        """
+        Inicializa OpponentExpert.
+
+        Parameters
+        ----------
+        player : int, default=0
+            Identificador del jugador controlado por nuestro agente.
+
+            El oponente se determina automáticamente como el otro
+            jugador:
+
+                player == 0  -> opponent_player == 1
+                player == 1  -> opponent_player == 0
+
+        Notes
+        -----
+        El constructor no procesa ninguna observation.
+
+        Los valores de estado se actualizan posteriormente mediante:
+
+            process_observation(obs)
+        """
+
+        # --------------------------------------------------------------
+        # Identificación de jugadores
+        # --------------------------------------------------------------
+
+        self.player = player
+        """
+        Identificador del jugador controlado por nuestro agente.
+
+        Tipo:
+            int
+        """
+
+        self.opponent_player = 1 - player
+        """
+        Identificador del jugador oponente.
+
+        Se obtiene suponiendo dos jugadores:
+
+            player 0 -> opponent 1
+            player 1 -> opponent 0
+
+        Tipo:
+            int
+        """
+
+        # --------------------------------------------------------------
+        # Información económica observable
+        # --------------------------------------------------------------
+
+        self.cash = 0.0
+        """
+        Dinero actualmente observable del oponente.
+
+        Se obtiene de:
+
+            obs["farms"][opponent_player]["money"]
+
+        Tipo:
+            float
+
+        Importante
+        ----------
+        Este valor representa únicamente el dinero observable.
+
+        No representa el patrimonio neto completo del oponente porque
+        sus recursos privados no están disponibles para nuestro agente.
+        """
+
+        # --------------------------------------------------------------
+        # Posición
+        # --------------------------------------------------------------
+
+        self.farmer_position = None
+        """
+        Posición actual del farmer del oponente.
+
+        Se obtiene de:
+
+            obs["farms"][opponent_player]["farmer"]
+
+        Tipo:
+            tuple/list/estructura equivalente según observation
+
+        La posición se registra como estado observable.
+
+        No se interpreta como intención o próxima acción.
+        """
+
+        # --------------------------------------------------------------
+        # Superficie del farm
+        # --------------------------------------------------------------
+
+        self.total_tiles = 0
+        """
+        Número total de tiles observados en el farm del oponente.
+
+        Incluye tiles bloqueados y desbloqueados.
+
+        Tipo:
+            int
+        """
+
+        self.locked_tiles = 0
+        """
+        Número de tiles bloqueados del farm del oponente.
+
+        Tipo:
+            int
+        """
+
+        self.unlocked_tiles = 0
+        """
+        Número de tiles desbloqueados del farm del oponente.
+
+        Tipo:
+            int
+        """
+
+        self.empty_tiles = 0
+        """
+        Número de tiles desbloqueados y actualmente vacíos.
+
+        Un tile con valor None se considera:
+
+            unlocked + empty
+
+        Tipo:
+            int
+        """
+
+        self.occupied_tiles = 0
+        """
+        Número de tiles desbloqueados que contienen algún elemento.
+
+        Tipo:
+            int
+        """
+
+        self.weed_tiles = 0
+        """
+        Número de tiles ocupados por weeds.
+
+        Tipo:
+            int
+        """
+
+        self.plant_tiles = 0
+        """
+        Número de tiles ocupados por plantas.
+
+        Tipo:
+            int
+        """
+
+        # --------------------------------------------------------------
+        # Agricultura
+        # --------------------------------------------------------------
+
+        self.crops = {}
+        """
+        Resumen agregado de los cultivos observados.
+
+        La estructura se organiza por tipo de cultivo.
+
+        Ejemplo conceptual:
+
+            {
+                "WHEAT": {
+                    "count": 3,
+                    "yield_units": 2,
+                    "ready_count": 2,
+                    "unwatered_count": 1,
+                    "fertilized_count": 0
+                }
+            }
+
+        Tipo:
+            dict
+        """
+
+        self.total_plants = 0
+        """
+        Número total de plantas observadas.
+
+        Tipo:
+            int
+        """
+
+        self.ready_plants = 0
+        """
+        Número de plantas que actualmente tienen producción disponible.
+
+        La condición de ready se determina a partir de:
+
+            yield_units > 0
+
+        Tipo:
+            int
+        """
+
+        self.unwatered_plants = 0
+        """
+        Número de plantas que presentan un estado de falta de agua
+        según el campo observable:
+
+            consecutive_unwatered > 0
+
+        Tipo:
+            int
+        """
+
+        self.fertilized_plants = 0
+        """
+        Número de plantas que están fertilizadas según el estado
+        observable del tile.
+
+        Tipo:
+            int
+        """
+
+        self.current_yield = 0
+        """
+        Producción actualmente disponible en las plantas observadas.
+
+        Se calcula como la suma de:
+
+            yield_units
+
+        de todas las plantas observadas.
+
+        Tipo:
+            int/float
+        """
+
+        self.production_ready_now = 0
+        """
+        Producción que está actualmente disponible para ser recogida.
+
+        En la implementación actual corresponde a la suma de
+        yield_units de las plantas cuyo estado indica que están ready.
+
+        Tipo:
+            int/float
+        """
+
+        self.agricultural_surface = 0
+        """
+        Superficie agrícola actualmente disponible.
+
+        Se considera equivalente al número de tiles desbloqueados.
+
+        Tipo:
+            int
+        """
+
+        self.occupied_agricultural_surface = 0
+        """
+        Superficie agrícola actualmente ocupada por weeds o plantas.
+
+        Tipo:
+            int
+        """
+
+        self.free_agricultural_surface = 0
+        """
+        Superficie agrícola desbloqueada y actualmente libre.
+
+        Se calcula como:
+
+            agricultural_surface
+            - occupied_agricultural_surface
+
+        Tipo:
+            int
+        """
+
+        self.crop_details = []
+        """
+        Lista con información detallada de cada planta observada.
+
+        Cada elemento contiene información como:
+
+            crop
+            planted_day
+            crop_age
+            yield_units
+            watered_today
+            consecutive_unwatered
+            fertilized_until_day
+            max_lifespan_step
+            steps_remaining
+            is_ready
+            is_unwatered
+            is_fertilized
+
+        Tipo:
+            list[dict]
+        """
+
+        # --------------------------------------------------------------
+        # Livestock
+        # --------------------------------------------------------------
+
+        self.animals = {}
+        """
+        Conteo de animales colocados y observables en el farm.
+
+        La estructura se organiza por tipo de animal.
+
+        Ejemplo:
+
+            {
+                "COW": 2,
+                "SHEEP": 1
+            }
+
+        Tipo:
+            dict
+        """
+
+        self.placed_animals = 0
+        """
+        Número total de animales colocados y observables en los tiles
+        del farm del oponente.
+
+        Tipo:
+            int
+
+        Importante
+        ----------
+        No incluye animales que puedan encontrarse en el inventario
+        privado o shed del oponente, porque esa información no es
+        observable directamente.
+        """
+
+        self.animal_details = []
+        """
+        Lista con información detallada de cada animal observable.
+
+        Cada elemento puede contener:
+
+            animal
+            location
+            x
+            y
+            placed_day
+            age_days
+            yield_units
+            consecutive_unfed
+            fed_today
+            needs_feed
+            cared_today
+            fertilizer_available
+            pending_care_bonus
+
+        Tipo:
+            list[dict]
+        """
+
+    # ==================================================================
+    # PROCESAMIENTO DE OBSERVATION
+    # ==================================================================
+
+    def process_observation(self, obs):
+        """
+        Procesa una observation completa del juego.
+
+        Parameters
+        ----------
+        obs : dict
+            Observation proporcionada por el entorno del juego.
+
+        Returns
+        -------
+        None
+            El método actualiza el estado interno del Expert.
+
+        Notes
+        -----
+        El método analiza exclusivamente el farm público del oponente:
+
+            obs["farms"][self.opponent_player]
+
+        No utiliza:
+
+            obs["private"]
+
+        porque esa sección representa información privada del jugador
+        que ejecuta el agente.
+
+        El procesamiento incluye:
+
+        - dinero;
+        - posición del farmer;
+        - superficie;
+        - weeds;
+        - plantas;
+        - cultivos;
+        - producción;
+        - animales colocados;
+        - detalles de cultivos;
+        - detalles de animales.
+
+        El estado dinámico se reinicia antes de procesar los tiles para
+        evitar conservar información de una observation anterior.
+        """
+
+        opponent = obs["farms"][self.opponent_player]
+
+        # --------------------------------------------------------------
+        # Información económica
+        # --------------------------------------------------------------
+
+        self.cash = opponent.get("money", 0.0)
+
+        # --------------------------------------------------------------
+        # Posición
+        # --------------------------------------------------------------
+
+        self.farmer_position = opponent.get("farmer")
+
+        # --------------------------------------------------------------
+        # Reinicialización del estado dinámico
+        # --------------------------------------------------------------
+
+        self.total_tiles = 0
+        self.locked_tiles = 0
+        self.unlocked_tiles = 0
+        self.empty_tiles = 0
+        self.occupied_tiles = 0
+        self.weed_tiles = 0
+        self.plant_tiles = 0
+
+        self.crops = {}
+        self.total_plants = 0
+        self.ready_plants = 0
+        self.unwatered_plants = 0
+        self.fertilized_plants = 0
+
+        self.current_yield = 0
+        self.production_ready_now = 0
+
+        self.agricultural_surface = 0
+        self.occupied_agricultural_surface = 0
+        self.free_agricultural_surface = 0
+
+        self.crop_details = []
+
+        self.animals = {}
+        self.placed_animals = 0
+        self.animal_details = []
+
+        # --------------------------------------------------------------
+        # Procesamiento de tiles
+        # --------------------------------------------------------------
+
+        tiles = opponent.get("tiles", [])
+
+        for y, row in enumerate(tiles):
+
+            for x, tile in enumerate(row):
+
+                self.total_tiles += 1
+
+                # ------------------------------------------------------
+                # Tile vacío
+                # ------------------------------------------------------
+
+                if tile is None:
+                    self.unlocked_tiles += 1
+                    self.empty_tiles += 1
+                    continue
+
+                # ------------------------------------------------------
+                # Tile bloqueado
+                # ------------------------------------------------------
+
+                if tile == "LOCKED":
+                    self.locked_tiles += 1
+                    continue
+
+                # ------------------------------------------------------
+                # Protección frente a estructuras inesperadas
+                # ------------------------------------------------------
+
+                if not isinstance(tile, dict):
+                    continue
+
+                self.unlocked_tiles += 1
+                self.occupied_tiles += 1
+
+                kind = tile.get("kind")
+
+                # ------------------------------------------------------
+                # Weed
+                # ------------------------------------------------------
+
+                if kind == "WEED":
+                    self.weed_tiles += 1
+                    continue
+
+                # ------------------------------------------------------
+                # Plant
+                # ------------------------------------------------------
+
+                if kind == "PLANT":
+
+                    self.plant_tiles += 1
+                    self.total_plants += 1
+
+                    self._process_crop(tile, obs)
+
+                # ------------------------------------------------------
+                # Animal
+                # ------------------------------------------------------
+
+                animal = tile.get("animal")
+
+                if animal in self.ANIMAL_TYPES:
+
+                    self.placed_animals += 1
+
+                    self.animals[animal] = (
+                        self.animals.get(animal, 0) + 1
+                    )
+
+                    self._process_animal(
+                        tile,
+                        animal,
+                        x,
+                        y,
+                        obs
+                    )
+
+        # --------------------------------------------------------------
+        # Superficie agrícola
+        # --------------------------------------------------------------
+
+        self.agricultural_surface = self.unlocked_tiles
+
+        self.occupied_agricultural_surface = (
+            self.plant_tiles +
+            self.weed_tiles
+        )
+
+        self.free_agricultural_surface = (
+            self.agricultural_surface -
+            self.occupied_agricultural_surface
+        )
+
+    # ==================================================================
+    # PROCESAMIENTO DE CULTIVOS
+    # ==================================================================
+
+    def _process_crop(self, tile, obs):
+        """
+        Procesa una planta individual del oponente.
+
+        Parameters
+        ----------
+        tile : dict
+            Tile que contiene la información de la planta.
+
+        obs : dict
+            Observation actual, utilizada para obtener información
+            temporal como day y step.
+
+        Returns
+        -------
+        None
+
+        La función:
+
+        1. extrae los datos del cultivo;
+        2. calcula su edad;
+        3. determina si tiene producción disponible;
+        4. determina si presenta falta de agua;
+        5. determina si está fertilizado;
+        6. actualiza los agregados del cultivo;
+        7. actualiza la producción total observable;
+        8. almacena el detalle individual del cultivo.
+
+        Esta función no decide qué hacer con el cultivo.
+        """
+
+        day = obs.get("day", 0)
+
+        crop = tile.get("crop")
+
+        planted_day = tile.get("planted_day", 0)
+
+        yield_units = tile.get("yield_units", 0)
+
+        watered_today = tile.get("watered_today", False)
+
+        consecutive_unwatered = tile.get(
+            "consecutive_unwatered",
+            0
+        )
+
+        fertilized_until_day = tile.get(
+            "fertilized_until_day"
+        )
+
+        max_lifespan_step = tile.get(
+            "max_lifespan_step"
+        )
+
+        # --------------------------------------------------------------
+        # Edad del cultivo
+        # --------------------------------------------------------------
+
+        crop_age = max(
+            0,
+            day - planted_day
+        )
+
+        # --------------------------------------------------------------
+        # Estados derivados
+        # --------------------------------------------------------------
+
+        is_ready = yield_units > 0
+
+        is_unwatered = consecutive_unwatered > 0
+
+        is_fertilized = (
+            fertilized_until_day is not None
+            and fertilized_until_day >= day
+        )
+
+        # --------------------------------------------------------------
+        # Crear agregado del cultivo
+        # --------------------------------------------------------------
+
+        if crop not in self.crops:
+
+            self.crops[crop] = {
+                "count": 0,
+                "yield_units": 0,
+                "ready_count": 0,
+                "unwatered_count": 0,
+                "fertilized_count": 0,
+            }
+
+        # --------------------------------------------------------------
+        # Actualizar agregado
+        # --------------------------------------------------------------
+
+        self.crops[crop]["count"] += 1
+
+        self.crops[crop]["yield_units"] += yield_units
+
+        if is_ready:
+            self.crops[crop]["ready_count"] += 1
+            self.ready_plants += 1
+
+        if is_unwatered:
+            self.crops[crop]["unwatered_count"] += 1
+            self.unwatered_plants += 1
+
+        if is_fertilized:
+            self.crops[crop]["fertilized_count"] += 1
+            self.fertilized_plants += 1
+
+        # --------------------------------------------------------------
+        # Producción
+        # --------------------------------------------------------------
+
+        self.current_yield += yield_units
+
+        if is_ready:
+            self.production_ready_now += yield_units
+
+        # --------------------------------------------------------------
+        # Tiempo restante de vida del cultivo
+        # --------------------------------------------------------------
+
+        steps_remaining = None
+
+        if max_lifespan_step is not None:
+
+            steps_remaining = (
+                max_lifespan_step -
+                obs.get("step", 0)
+            )
+
+        # --------------------------------------------------------------
+        # Detalle del cultivo
+        # --------------------------------------------------------------
+
+        self.crop_details.append({
+            "crop": crop,
+            "planted_day": planted_day,
+            "crop_age": crop_age,
+            "yield_units": yield_units,
+            "watered_today": watered_today,
+            "consecutive_unwatered": consecutive_unwatered,
+            "fertilized_until_day": fertilized_until_day,
+            "max_lifespan_step": max_lifespan_step,
+            "steps_remaining": steps_remaining,
+            "is_ready": is_ready,
+            "is_unwatered": is_unwatered,
+            "is_fertilized": is_fertilized,
+        })
+
+    # ==================================================================
+    # PROCESAMIENTO DE ANIMALES
+    # ==================================================================
+
+    def _process_animal(
+        self,
+        tile,
+        animal,
+        x,
+        y,
+        obs
+    ):
+        """
+        Procesa un animal colocado en el farm del oponente.
+
+        Parameters
+        ----------
+        tile : dict
+            Tile que contiene el animal.
+
+        animal : str
+            Tipo de animal.
+
+        x : int
+            Coordenada horizontal del tile.
+
+        y : int
+            Coordenada vertical del tile.
+
+        obs : dict
+            Observation actual.
+
+        Returns
+        -------
+        None
+
+        La función extrae únicamente información observable del animal.
+
+        No intenta determinar:
+
+        - qué quiere hacer el oponente;
+        - cuándo alimentará al animal;
+        - cuándo recogerá su producción;
+        - si comprará otro animal;
+        - qué estrategia está utilizando.
+
+        Esas interpretaciones pertenecen a capas superiores.
+        """
+
+        day = obs.get("day", 0)
+
+        placed_day = tile.get("placed_day")
+
+        age_days = None
+
+        if placed_day is not None:
+
+            age_days = max(
+                0,
+                day - placed_day
+            )
+
+        yield_units = tile.get(
+            "yield_units",
+            0
+        )
+
+        consecutive_unfed = tile.get(
+            "consecutive_unfed",
+            0
+        )
+
+        fed_today = tile.get(
+            "fed_today",
+            False
+        )
+
+        cared_today = tile.get(
+            "cared_today",
+            False
+        )
+
+        pending_care_bonus = tile.get(
+            "pending_care_bonus",
+            False
+        )
+
+        fertilizer_available = tile.get(
+            "fertilizer_available",
+            False
+        )
+
+        needs_feed = not fed_today
+
+        # --------------------------------------------------------------
+        # Guardar detalle observable
+        # --------------------------------------------------------------
+
+        self.animal_details.append({
+            "animal": animal,
+            "location": (
+                "tile",
+                x,
+                y
+            ),
+            "x": x,
+            "y": y,
+            "placed_day": placed_day,
+            "age_days": age_days,
+            "yield_units": yield_units,
+            "consecutive_unfed": consecutive_unfed,
+            "fed_today": fed_today,
+            "needs_feed": needs_feed,
+            "cared_today": cared_today,
+            "fertilizer_available": fertilizer_available,
+            "pending_care_bonus": pending_care_bonus,
+        })
+
+    # ==================================================================
+    # GETTERS
+    # ==================================================================
+
+    def get_cash(self):
+        """
+        Returns the observable cash of the opponent.
+
+        Returns
+        -------
+        float
+            Dinero actualmente observable del oponente.
+        """
+        return self.cash
+
+    def get_farmer_position(self):
+        """
+        Returns the current observable position of the opponent's farmer.
+
+        Returns
+        -------
+        object
+            Posición del farmer según la observation.
+        """
+        return self.farmer_position
+
+    def get_total_tiles(self):
+        """
+        Returns the total number of tiles observed in the opponent farm.
+
+        Returns
+        -------
+        int
+            Número total de tiles.
+        """
+        return self.total_tiles
+
+    def get_locked_tiles(self):
+        """
+        Returns the number of locked tiles.
+
+        Returns
+        -------
+        int
+            Número de tiles bloqueados.
+        """
+        return self.locked_tiles
+
+    def get_unlocked_tiles(self):
+        """
+        Returns the number of unlocked tiles.
+
+        Returns
+        -------
+        int
+            Número de tiles desbloqueados.
+        """
+        return self.unlocked_tiles
+
+    def get_empty_tiles(self):
+        """
+        Returns the number of unlocked and empty tiles.
+
+        Returns
+        -------
+        int
+            Número de tiles vacíos.
+        """
+        return self.empty_tiles
+
+    def get_occupied_tiles(self):
+        """
+        Returns the number of occupied tiles.
+
+        Returns
+        -------
+        int
+            Número de tiles ocupados.
+        """
+        return self.occupied_tiles
+
+    def get_weed_tiles(self):
+        """
+        Returns the number of tiles containing weeds.
+
+        Returns
+        -------
+        int
+            Número de tiles con weeds.
+        """
+        return self.weed_tiles
+
+    def get_plant_tiles(self):
+        """
+        Returns the number of tiles containing plants.
+
+        Returns
+        -------
+        int
+            Número de tiles con plantas.
+        """
+        return self.plant_tiles
+
+    def get_crops(self):
+        """
+        Returns the aggregated crop information.
+
+        Returns
+        -------
+        dict
+            Información agregada por tipo de cultivo.
+        """
+        return self.crops
+
+    def get_total_plants(self):
+        """
+        Returns the total number of observable plants.
+
+        Returns
+        -------
+        int
+            Número total de plantas.
+        """
+        return self.total_plants
+
+    def get_ready_plants(self):
+        """
+        Returns the number of plants currently ready.
+
+        Returns
+        -------
+        int
+            Número de plantas ready.
+        """
+        return self.ready_plants
+
+    def get_unwatered_plants(self):
+        """
+        Returns the number of plants currently showing an unwatered
+        state.
+
+        Returns
+        -------
+        int
+            Número de plantas sin agua según el estado observable.
+        """
+        return self.unwatered_plants
+
+    def get_fertilized_plants(self):
+        """
+        Returns the number of fertilized plants.
+
+        Returns
+        -------
+        int
+            Número de plantas fertilizadas.
+        """
+        return self.fertilized_plants
+
+    def get_crop_details(self):
+        """
+        Returns detailed information for every observable plant.
+
+        Returns
+        -------
+        list[dict]
+            Lista de detalles individuales de los cultivos.
+        """
+        return self.crop_details
+
+    def get_current_yield(self):
+        """
+        Returns the total observable yield currently present in crops.
+
+        Returns
+        -------
+        int/float
+            Producción observable actual.
+        """
+        return self.current_yield
+
+    def get_production_ready_now(self):
+        """
+        Returns the total production currently ready.
+
+        Returns
+        -------
+        int/float
+            Producción disponible para recoger.
+        """
+        return self.production_ready_now
+
+    def get_agricultural_surface(self):
+        """
+        Returns the observable agricultural surface.
+
+        Returns
+        -------
+        int
+            Número de tiles desbloqueados.
+        """
+        return self.agricultural_surface
+
+    def get_occupied_agricultural_surface(self):
+        """
+        Returns the currently occupied agricultural surface.
+
+        Returns
+        -------
+        int
+            Número de tiles agrícolas ocupados por plantas o weeds.
+        """
+        return self.occupied_agricultural_surface
+
+    def get_free_agricultural_surface(self):
+        """
+        Returns the currently free agricultural surface.
+
+        Returns
+        -------
+        int
+            Número de tiles agrícolas libres.
+        """
+        return self.free_agricultural_surface
+
+    def get_animals(self):
+        """
+        Returns the aggregated observable animals.
+
+        Returns
+        -------
+        dict
+            Número de animales por tipo.
+        """
+        return self.animals
+
+    def get_placed_animals(self):
+        """
+        Returns the total number of observable placed animals.
+
+        Returns
+        -------
+        int
+            Número de animales colocados.
+        """
+        return self.placed_animals
+
+    def get_animal_details(self):
+        """
+        Returns detailed information for every observable placed animal.
+
+        Returns
+        -------
+        list[dict]
+            Lista de detalles individuales de los animales.
+        """
+        return self.animal_details
+
+    # ==================================================================
+    # FEATURES
+    # ==================================================================
+
+    def get_features(self):
+        """
+        Returns the complete observable state extracted for the opponent.
+
+        Returns
+        -------
+        dict
+            Diccionario con todas las features producidas por
+            OpponentExpert.
+
+        Notes
+        -----
+        Este método no genera nuevas interpretaciones estratégicas.
+
+        Simplemente expone de forma estructurada el estado que el
+        Expert ya ha procesado.
+
+        Las features pueden posteriormente ser utilizadas por:
+
+            Opponent Semantic State
+            SemanticState
+            Competitive State
+            Feature Engineering
+            Machine Learning
+
+        según corresponda a la arquitectura final.
+        """
+
+        return {
+            # Economic
+            "cash": self.cash,
+
+            # Position
+            "farmer_position": self.farmer_position,
+
+            # Farm / surface
+            "total_tiles": self.total_tiles,
+            "locked_tiles": self.locked_tiles,
+            "unlocked_tiles": self.unlocked_tiles,
+            "empty_tiles": self.empty_tiles,
+            "occupied_tiles": self.occupied_tiles,
+            "weed_tiles": self.weed_tiles,
+            "plant_tiles": self.plant_tiles,
+
+            # Agriculture
+            "crops": self.crops,
+            "total_plants": self.total_plants,
+            "ready_plants": self.ready_plants,
+            "unwatered_plants": self.unwatered_plants,
+            "fertilized_plants": self.fertilized_plants,
+
+            "current_yield": self.current_yield,
+            "production_ready_now": self.production_ready_now,
+
+            "agricultural_surface": self.agricultural_surface,
+            "occupied_agricultural_surface":
+                self.occupied_agricultural_surface,
+            "free_agricultural_surface":
+                self.free_agricultural_surface,
+
+            "crop_details": self.crop_details,
+
+            # Livestock
+            "animals": self.animals,
+            "placed_animals": self.placed_animals,
+            "animal_details": self.animal_details,
+        }
+

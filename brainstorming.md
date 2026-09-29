@@ -1,5 +1,13 @@
 ﻿# Kaggriculture — Business Experts Brainstorming
 
+> **Estado del documento:** documento histórico de ideación y contexto arquitectónico. No es una especificación de implementación. Para features de `SemanticState`, consultar `Semantic contract.md`; para patrones no validados, consultar `Semantic pattern.md`.
+
+## Estado actual (2026-09-29)
+
+Implementados: `FinancialExpert`, `AgricultureExpert`, `InventoryExpert`, `LivestockExpert`, `MarketExpert` y `OpponentExpert` (seis Business Experts). `SemanticState` está implementado como esqueleto vacío con `risks`, `opportunities`, `situations` y `relationships`.
+
+`OperationsExpert`, `ProductionExpert`, `StrategicExpert`, `StateTransition`, reward, credit assignment, Decision Experts y Coordinator no están implementados. La existencia de `StrategicExpert` está decidida a nivel arquitectónico; su interfaz y fuentes siguen abiertas. Las listas de features de este documento son ideas, salvo que se confirmen en el código y en el contrato semántico.
+
 ## 1. Objective
 
 The objective is to transform the raw Kaggriculture game observation (`obs`) into meaningful business-domain information that can later be used by decision-making, Machine Learning and Reinforcement Learning models.
@@ -15,11 +23,19 @@ RAW OBSERVATION
        ↓
 Business Domain Experts
        ↓
-Structured Domain State
+Domain facts
+    ↓
+SemanticState
+  ├── situations
+  ├── relationships
+  ├── risks
+  └── opportunities
        ↓
-Cross-Domain Semantic State
-       ↓
-Decision / ML / RL
+Model-specific features
+    ↓
+Specialized Decision Experts
+    ↓
+Decision Coordinator
        ↓
 ACTION
 ```
@@ -33,35 +49,29 @@ Their purpose is to correctly describe the current state of the game from differ
 # 2. Architecture
 
 ```text
-                         OBS
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-        ▼                 ▼                 ▼
- FinancialExpert   AgricultureExpert   LivestockExpert
-        │                 │                 │
-        ▼                 ▼                 ▼
- InventoryExpert    MarketExpert      OperationsExpert
-        │                 │                 │
-        └─────────────────┼─────────────────┘
-                          │
-                          ▼
-                 Domain / Semantic State
-                          │
-                          ▼
-                 Production Integration
-                          │
-                          ▼
-              Cross-Domain Synthetic Features
-                          │
-                          ▼
-                  Decision / ML / RL
-                          │
-                          ▼
-                        ACTION
+                            OBS
+                             │
+                 ┌─────────────────┼──────────────────────────┐
+                 │                 │                          │
+                 ▼                 ▼                          ▼
+             FinancialExpert   AgricultureExpert           LivestockExpert
+             InventoryExpert   MarketExpert                OpponentExpert
+                 └─────────────────┼──────────────────────────┘
+                             ↓
+                        Domain facts
+                             ↓
+                          SemanticState
+                  (situations / relationships / risks /
+                       opportunities)
+                             ↓
+                    Model-specific features
+                             ↓
+                    Decision Experts + Coordinator
+                             ↓
+                           ACTION
 ```
 
-`ProductionExpert` is therefore considered an **integration expert**, not another independent source of production facts.
+Cross-domain semantic features belong inside `SemanticState`; a separate mandatory `Cross-Domain Synthetic Features` layer is not part of the current architecture. The eventual role of `ProductionExpert` remains future design, not an implemented integration stage.
 
 ---
 
@@ -90,17 +100,16 @@ The architecture follows these principles:
 
 # 4. Business Experts
 
-The architecture currently contains seven specialized Business Experts:
+The current implementation contains six Business Experts:
 
 1. `FinancialExpert`
 2. `AgricultureExpert`
 3. `LivestockExpert`
 4. `InventoryExpert`
 5. `MarketExpert`
-6. `OperationsExpert`
-7. `ProductionExpert`
+6. `OpponentExpert`
 
-Current implementation status:
+Current and planned status:
 
 ```text
 ┌──────────────────────┬──────────────┐
@@ -111,10 +120,14 @@ Current implementation status:
 │ LivestockExpert      │ DONE         │
 │ InventoryExpert      │ DONE         │
 │ MarketExpert         │ DONE         │
+│ OpponentExpert       │ DONE         │
 │ OperationsExpert     │ PLANNED      │
 │ ProductionExpert     │ PLANNED      │
+│ StrategicExpert      │ DESIGNED     │
 └──────────────────────┴──────────────┘
 ```
+
+`StrategicExpert` is a decided future component, not part of the six implemented experts. Its data sources and interface remain open. Operations and Production are also not implemented; their inclusion and boundaries must not be inferred from this historical brainstorming document.
 
 However, completing the remaining Experts is **not automatically the next step**.
 
@@ -1041,6 +1054,16 @@ The decision belongs to a later layer that combines market, inventory, financial
 
 ---
 
+# 9.6 OpponentExpert
+
+## Status
+
+**Implemented**
+
+## Responsibility
+
+`OpponentExpert` describes only state observable in `obs["farms"][opponent]`, including public cash, farm tiles, visible crops/production and placed animals. It does not access `obs["private"]`, infer intentions or actions, compare players, or calculate complete opponent net worth. Relative and competitive interpretation belongs to a future layer.
+
 # 10. OperationsExpert
 
 ## Status
@@ -1169,6 +1192,9 @@ Every feature has one logical owner.
 | `market_price`            | MarketExpert      |
 | `price_trend`             | MarketExpert      |
 | `market_pressure`         | MarketExpert      |
+| `opponent_cash`           | OpponentExpert    |
+| `opponent_visible_crops`  | OpponentExpert    |
+| `opponent_placed_animals` | OpponentExpert    |
 | `farmer_position`         | OperationsExpert  |
 | `hands_count`             | OperationsExpert  |
 | `integrated_production`   | ProductionExpert  |
@@ -1297,9 +1323,9 @@ These are domain facts.
 
 ---
 
-## Cross-Domain Features
+## SemanticState and cross-domain meaning
 
-A higher layer combines domain facts.
+In the current architecture, `SemanticState` combines validated domain facts and contains cross-domain semantic features in its `situations`, `relationships`, `risks` and `opportunities` groups. There is no required separate synthetic-feature layer after it.
 
 For example:
 
@@ -1330,11 +1356,7 @@ or:
 livestock_maintenance_risk = True
 ```
 
-These are **not raw domain facts**.
-
-They are cross-domain derived features.
-
-They therefore belong after the Business Experts.
+These are **not raw domain facts**. They are candidate cross-domain meanings belonging inside `SemanticState` after their source, rule, granularity, redundancy and leakage have been validated.
 
 ---
 
@@ -1465,70 +1487,47 @@ Its purpose is to provide a clean representation of the current state to later l
 
 ---
 
-# 19. Long-Term Architecture
+# 19. Long-Term Architecture (Historical Proposal)
 
 The complete architecture is therefore:
 
 ```text
-                    RAW OBSERVATION
-                           │
-                           ▼
-                ┌──────────────────────┐
-                │   Business Experts   │
-                │                      │
-                │ Financial            │
-                │ Agriculture          │
-                │ Livestock            │
-                │ Inventory            │
-                │ Market               │
-                │ Operations           │
-                │ Production           │
-                └──────────┬───────────┘
-                           │
-                           ▼
-                     Domain State
-                           │
-                           ▼
-                    Semantic State
-                           │
-                           ▼
-             Cross-Domain Synthetic Features
-                           │
-                           ▼
-                  State Transition Layer
-                           │
-                           ▼
-                    Reward / Credit
-                           │
-                           ▼
-                    Decision / ML / RL
-                           │
-                           ▼
-                         ACTION
+        RAW OBSERVATION
+            ↓
+        Six implemented Business Experts
+            ↓
+        Domain facts
+            ↓
+        SemanticState
+          situations / relationships / risks / opportunities
+            ↓
+        Model-specific features
+            ↓
+        Specialized Decision Experts + Coordinator
+            ↓
+        ACTION
 ```
 
-The important separation is:
+        Reward and credit assignment are future training/evaluation architecture, not layers currently implemented in the action path. `StrategicExpert` is also future; it will describe competitive state, not choose actions.
+
+        The current semantic boundary is:
 
 ```text
 Business Experts
     ↓
 describe the state
 
-Semantic State
+SemanticState
     ↓
-integrates the state
+integrates domain facts and validated cross-domain meaning
 
-Cross-Domain Features
+Model-specific features
     ↓
-interpret relationships between domains
+prepare inputs for a decision model
 
-Decision Layer
+Decision Experts + Coordinator
     ↓
-chooses an action
-
-Reward / Credit Assignment
-    ↓
-evaluates consequences for learning
+select an action
 ```
 
 ---
@@ -1537,7 +1536,7 @@ evaluates consequences for learning
 
 The implementation should now proceed in phases.
 
-## Phase 1 — Deterministic Domain Experts
+## Phase 1 — Deterministic Domain Experts (Historical Status)
 
 ```text
 FinancialExpert       DONE
@@ -1545,9 +1544,10 @@ AgricultureExpert     DONE
 InventoryExpert       DONE
 LivestockExpert       DONE
 MarketExpert          DONE
+OpponentExpert        DONE
 ```
 
-These five form the currently implemented deterministic domain layer.
+These six form the currently implemented deterministic Business Expert layer.
 
 ---
 
@@ -1569,7 +1569,7 @@ The recent cow disappearance test is an example of this validation phase.
 
 ---
 
-## Phase 3 — Semantic State
+## Phase 3 — SemanticState (Current Work)
 
 Build the integration layer that combines:
 
@@ -1579,17 +1579,18 @@ Agriculture
 Inventory
 Livestock
 Market
+Opponent (observable public state only)
 ```
 
-into a single structured state.
+into the existing structured `SemanticState`. Its current implementation initializes empty semantic categories; features must be audited against actual getters before implementation.
 
-This is the **next major architectural step**.
+The skeleton exists; the current work is auditing and implementing validated features.
 
 ---
 
-## Phase 4 — Cross-Domain Synthetic Features
+## Phase 4 — Validate and Implement Semantic Features
 
-After the Semantic State is validated, derive relationships such as:
+Validated cross-domain relationships, situations, risks and opportunities belong inside `SemanticState`, not in a required downstream synthetic-feature layer. Candidate examples include:
 
 ```text
 feed_shortage
@@ -1602,13 +1603,11 @@ economic_exposure
 market_opportunity_context
 ```
 
-These are not owned by individual domain Experts.
-
-They belong to the integration/feature layer.
+These are not raw domain facts and are not implemented merely because they appear in a brainstorming list. Their sources, getters, rules, granularity, redundancy and leakage must be validated in `Semantic contract.md`.
 
 ---
 
-## Phase 5 — OperationsExpert
+## Future — OperationsExpert
 
 Implement `OperationsExpert` only after the basic Semantic State is stable.
 
@@ -1623,7 +1622,7 @@ what tasks are physically accessible
 
 ---
 
-## Phase 6 — ProductionExpert
+## Future — ProductionExpert
 
 Implement `ProductionExpert` as the integration layer for:
 
@@ -1634,6 +1633,12 @@ LivestockExpert
 ```
 
 It should aggregate production rather than duplicate domain logic.
+
+OperationsExpert and ProductionExpert are not prerequisites for SemanticState validation or StrategicExpert. Their eventual scope and placement remain open.
+
+## Future — StrategicExpert
+
+The existence of `StrategicExpert` is an architectural decision, but it is not implemented. It will describe deterministic competitive state, not recommend actions or calculate reward. Whether it consumes `OpponentExpert` and other experts or reconstructs its inputs directly from `obs` remains open. It follows validated SemanticState features and precedes future state-transition/reward work.
 
 ---
 
@@ -1737,31 +1742,23 @@ AgricultureExpert     DONE
 InventoryExpert       DONE
 LivestockExpert       DONE
 MarketExpert          DONE
-                         │
-                         ▼
-              VALIDATE DOMAIN LAYER
-                         │
-                         ▼
-                 SEMANTIC STATE
-                         │
-                         ▼
-           CROSS-DOMAIN FEATURES
-                         │
-                         ▼
-              OperationsExpert
-                         │
-                         ▼
-              ProductionExpert
-                         │
-                         ▼
-               STATE TRANSITIONS
-                         │
-                         ▼
-               REWARD / CREDIT
-                         │
-                         ▼
-                   ML / RL
+OpponentExpert        DONE
+SemanticState         EMPTY SKELETON
+             ↓
+          MASTER CONTRACT AUDIT
+             ↓
+       VALIDATED SEMANTIC FEATURES
+             ↓
+       StrategicExpert (interface still open)
+             ↓
+      STATE TRANSITION / REWARD
+             ↓
+          CREDIT ASSIGNMENT
+             ↓
+     DECISION EXPERTS + COORDINATOR
 ```
+
+`StrategicExpert`, state transitions, reward/credit and the decision architecture are future work; only the six listed Business Experts and the empty `SemanticState` skeleton are implemented in this scope.
 
 This order keeps the architecture deterministic and testable and avoids adding Experts merely for the sake of adding more classes.
 

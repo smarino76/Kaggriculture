@@ -1,5 +1,7 @@
 # Semantic Pattern Space — Kaggriculture
 
+> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` está implementado actualmente como un esqueleto con categorías vacías; ningún patrón de este documento se considera implementado por aparecer aquí.
+
 ## 1. Purpose
 
 El **Semantic Pattern Space** define el conjunto de posibles patrones semánticos que pueden ser construidos a partir de las señales producidas por los Business Experts.
@@ -28,20 +30,26 @@ Los patrones deberán ser posteriormente validados antes de entrar en `SemanticS
 
 ```text
 RAW OBSERVATION
-       ↓
-BUSINESS DOMAIN EXPERTS
-       ↓
+   ↓
+SIX IMPLEMENTED BUSINESS EXPERTS
+   ↓
 DOMAIN FACTS
-       ↓
-SEMANTIC FEATURES
-       ↓
-SEMANTIC PATTERNS
-       ↓
+   ↓
+VALIDATION OF CANDIDATE PATTERNS
+   ↓
 SEMANTIC STATE
-       ↓
+  ├── situations
+  ├── relationships
+  ├── risks
+  └── opportunities
+   ↓
 MODEL-SPECIFIC FEATURES
-       ↓
-DECISION / ML / RL MODELS
+   ↓
+SPECIALIZED DECISION EXPERTS
+   ↓
+DECISION COORDINATOR
+   ↓
+ACTION
 ```
 
 Los Business Experts describen hechos de dominios específicos.
@@ -65,6 +73,16 @@ Los dominios actuales son:
 * Inventory
 * Market
 * Livestock
+* Opponent public state
+* Temporal context
+
+`OpponentExpert` is implemented and restricted to observable public farm state. Relative/competitive interpretation is future work; private opponent fields are excluded from inference features.
+
+Candidate features should state which dimensions they represent: `own`, `opponent_public`, `relative`, `temporal`, `competitive` and, where applicable, external `market` conditions. These dimensions are not interchangeable; do not imply opponent net worth where only public cash and visible farm facts exist.
+
+Market, inventory and production-market patterns must preserve product identity when their source values are product-specific. Do not replace per-product information with an arbitrary average or scalar aggregate.
+
+The current `AgricultureExpert` implementation accumulates `current_yield` and `production_ready_now` using the same per-plant `yield_units` rule. Treat them as redundant until their semantics or implementation diverge.
 
 ---
 

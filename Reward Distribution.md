@@ -1,5 +1,7 @@
 # Kaggriculture — Reward Distribution & Credit Assignment Brainstorming
 
+> **Status:** future architecture and hypothesis space, not current implementation. `StrategicExpert`, `StateTransition`, `RewardEngine`, `CreditAssignment`, Decision Experts and Coordinator are not implemented. Reward formulas below are candidates, not decisions. Current work is auditing and implementing validated `SemanticState` features.
+
 ## 1. Objective
 
 The objective of this document is to define how rewards should be distributed across the sequence of decisions made by an agent in Kaggriculture.
@@ -224,7 +226,7 @@ This introduces an explicit strategic dimension.
 
 # 5. Business Experts and their responsibilities
 
-The Business Expert architecture should now distinguish the following domains:
+The current implementation contains six Business Experts:
 
 ```text
 FinancialExpert
@@ -247,14 +249,26 @@ MarketExpert
     ↓
 Market and price state
 
-OperationsExpert
+OpponentExpert
     ↓
-Operational state
-
-StrategicExpert
-    ↓
-Competitive / strategic state
+Observable opponent state only
 ```
+
+`OperationsExpert`, `ProductionExpert` and `StrategicExpert` are future components, not members of the implemented six.
+
+| Component | Status |
+| --- | --- |
+| FinancialExpert | Implemented |
+| AgricultureExpert | Implemented |
+| InventoryExpert | Implemented |
+| LivestockExpert | Implemented |
+| MarketExpert | Implemented |
+| OpponentExpert | Implemented; observable opponent facts only |
+| OperationsExpert | Not implemented; future |
+| ProductionExpert | Not implemented; future role/interface to validate |
+| StrategicExpert | Existence decided; not implemented; sources/interface open |
+
+`OpponentExpert` owns observable opponent facts. `StrategicExpert`, when implemented, may interpret those facts relative to our own state; it must not be conflated with the opponent facts expert or treated as a decision maker.
 
 The experts answer:
 
@@ -427,19 +441,11 @@ OBS
    Strategic state
 ```
 
-However, an important architectural question remains:
+The following architectural question remains open:
 
 > Should StrategicExpert directly depend on other Experts, or independently reconstruct the required information from `obs`?
 
-For the first implementation, maintaining the same autonomous philosophy used by the other Business Experts is preferable:
-
-```text
-StrategicExpert(obs)
-```
-
-should be able to reconstruct its state directly from the observation.
-
-This avoids hidden coupling between experts.
+Whether it reconstructs directly from `obs` or consumes `OpponentExpert` and other Expert outputs is not decided. Preserve this as an open interface decision; do not encode either approach as settled architecture.
 
 Later, a higher-level orchestration layer can combine their outputs.
 
@@ -447,11 +453,9 @@ Later, a higher-level orchestration layer can combine their outputs.
 
 # 10. Public opponent information
 
-The StrategicExpert is the natural place to process information about the opponent.
+`OpponentExpert` currently extracts observable cash, farmer position, tile counts, visible crops/production and placed-animal details from `obs["farms"][opponent]`. It does not read `obs["private"]`, expose the opponent's private inventory or calculate complete opponent net worth. `StrategicExpert` may later interpret these facts relative to our own state.
 
-However, only information genuinely observable during gameplay should become an inference feature.
-
-Potential public variables include, subject to verification:
+Only information genuinely observable during gameplay may become an inference feature. Verify each field against the runtime observation schema before use. Other candidate public fields include, subject to verification:
 
 ```text
 opponent.money
@@ -1343,64 +1347,30 @@ Machine learning should learn from the resulting signal, not determine the rewar
 
 ---
 
-# 31. Updated architecture
+# 31. Candidate Long-Term Architecture
 
-The conceptual architecture is now:
+The following is a future architecture, not a description of implemented code:
 
 ```text
-                    GAME OBSERVATION
-                           │
-                           ▼
-                   Business Experts
-                           │
-       ┌───────────┬───────┼────────┬───────────┐
-       │           │       │        │           │
-       ▼           ▼       ▼        ▼           ▼
-   Financial   Agriculture Livestock Inventory Market
-       │           │       │        │           │
-       └───────────┴───────┴────────┴───────────┘
-                           │
-                           ▼
-                     Operations
-                           │
-                           ▼
-                      Strategic
-                        Expert
-                           │
-                           ▼
-                    Semantic State
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-             ▼                           ▼
-         Own state              Opponent public state
-             │                           │
-             └─────────────┬─────────────┘
-                           ▼
-                    State Transition
-                           │
-                           ▼
-                     Reward Engine
-                           │
-             ┌─────────────┴─────────────┐
-             ▼                           ▼
-       Own progress            Competitive progress
-             │                           │
-             └─────────────┬─────────────┘
-                           ▼
-                     Reward Signal
-                           │
-                           ▼
-                  Credit Assignment
-                           │
-                           ▼
-                  Training Dataset
-                           │
-                           ▼
-                       ML / RL
-                           │
-                           ▼
-                         ACTION
+RAW OBSERVATION
+    ↓
+Six implemented Business Experts
+    ↓
+Domain facts
+    ↓
+SemanticState (empty skeleton; features under audit)
+    ↓
+StrategicExpert → competitive / strategic state (future; interface open)
+    ↓
+StateTransition → RewardEngine → CreditAssignment (future)
+    ↓
+Model-specific features
+    ↓
+Specialized Decision Experts
+    ↓
+Decision Coordinator
+    ↓
+ACTION
 ```
 
 ---
@@ -1415,7 +1385,7 @@ Answer:
 
 > **What happened?**
 
-Examples:
+Current implemented examples:
 
 ```text
 FinancialExpert
@@ -1423,9 +1393,10 @@ AgricultureExpert
 LivestockExpert
 InventoryExpert
 MarketExpert
-OperationsExpert
-StrategicExpert
+OpponentExpert
 ```
+
+`OperationsExpert` and `StrategicExpert` remain future components; `ProductionExpert` is also unimplemented and its eventual boundary remains to be validated.
 
 ## Reward Engine
 
@@ -1445,20 +1416,16 @@ Answers:
 
 > **Given the current state, which action should be selected?**
 
-Therefore:
+The future decision layer is specialized and coordinated:
 
 ```text
-Business Experts
-        ↓
-Semantic understanding
-        ↓
-Reward Engine
-        ↓
-Credit Assignment
-        ↓
-Learning
-        ↓
-Decision
+SemanticState
+    ↓
+Strategic / Competitive State
+    ↓
+StateTransition → RewardEngine → CreditAssignment
+    ↓
+Decision Experts → Coordinator → Action
 ```
 
 ---
@@ -1695,29 +1662,34 @@ may inspect additional retrospective information
 
 Before implementing the final reward function:
 
-### Step 1 — Complete the Business Experts
+### Step 1 — Audit implemented Experts and SemanticState
 
-Define exactly what each expert owns:
+The six implemented experts are Financial, Agriculture, Inventory, Livestock, Market and Opponent. OperationsExpert and ProductionExpert are not implemented. StrategicExpert is an architectural decision but is not implemented.
+
+Validate each candidate feature against actual ownership and getters, and record:
 
 ```text
-Financial
-Agriculture
-Livestock
-Inventory
-Market
-Operations
-Strategic
+feature
+source
+getter
+rule
+meaning
+granularity
+dimension
+redundancy
+leakage
+decision
 ```
 
-### Step 2 — Define the semantic state
+### Step 2 — Finalize the candidate semantic contract
 
-Determine exactly which features each expert produces.
+Resolve duplicates, product granularity, thresholds and unresolved semantics before implementing features inside `SemanticState`.
 
 ### Step 3 — Define public opponent information
 
 Verify exactly which opponent variables are observable during real gameplay.
 
-### Step 4 — Implement StrategicExpert
+### Step 4 — Decide StrategicExpert sources/interface, then implement
 
 Initially deterministic and descriptive.
 
@@ -1859,7 +1831,7 @@ WIN = good
 LOSS = bad
 ```
 
-### Step 17 — Only then select the learning strategy
+### Step 17 — Define the decision architecture, then select learning strategy
 
 Consider:
 
@@ -1868,6 +1840,8 @@ supervised learning
 reinforcement learning
 hybrid learning
 ```
+
+Decision outputs such as `BUY_COW` belong to Decision Expert targets, never to `SemanticState`. The intended future path uses multiple specialized Decision Experts and a final Coordinator; neither is implemented today.
 
 ---
 
