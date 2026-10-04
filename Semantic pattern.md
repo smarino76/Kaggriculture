@@ -1,6 +1,6 @@
 # Semantic Pattern Space — Kaggriculture
 
-> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` implementa actualmente `situations.livestock_present`, `situations.production_ready`, `situations.livestock_attention`, `situations.storage_state`, `situations.farm_capacity_state`, `relationships.production_storage_relationship`, `relationships.inventory_market_relationship`, `relationships.production_market_relationship`, `risks.storage_pressure`, `risks.production_storage_risk` y `risks.livestock_maintenance_risk`; ningún otro patrón de este documento se considera implementado por aparecer aquí.
+> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` implementa actualmente `situations.livestock_present`, `situations.production_ready`, `situations.livestock_attention`, `situations.storage_state`, `situations.liquidity_state`, `situations.time_pressure`, `situations.market_state`, `situations.farm_capacity_state`, `relationships.production_storage_relationship`, `relationships.inventory_market_relationship`, `relationships.production_market_relationship`, `risks.storage_pressure`, `risks.production_storage_risk` y `risks.livestock_maintenance_risk`; ningún otro patrón de este documento se considera implementado por aparecer aquí.
 
 ## 1. Purpose
 
@@ -22,7 +22,9 @@ Su objetivo es explorar de forma sistemática las combinaciones de información 
 
 El espacio de patrones puede ser deliberadamente más amplio que el conjunto final de features implementadas.
 
-Los patrones deberán ser posteriormente validados antes de entrar en `SemanticState`.
+Los patrones deberán ser posteriormente validados antes de entrar en `SemanticState`. El catálogo implementado de 14 features se enumera al inicio de este documento y se especifica en `Semantic contract.md`.
+
+`SemanticState` es una fuente común de features semánticas, no un dataset ni una representación ?nica para todos los modelos. En una fase posterior cada modelo tendrá su propio conjunto de entradas y objetivo, seleccionados/transformados desde el catálogo según su tarea. La presencia de una hipótesis en este documento no significa que está implementada, sea adecuada para todo modelo o deba añadirse automáticamente.
 
 ## Contrato de salida de SemanticState
 

@@ -132,10 +132,54 @@ class SemanticState:
             },
         }
 
+        cash = self.financial.get_cash()
+        liquidity_ratio = self.financial.get_liquidity_ratio()
+        net_worth = self.financial.get_net_worth()
+        days_remaining = self.financial.get_days_remaining()
+        steps_remaining = self.financial.get_steps_remaining()
+        self.semantic["situations"]["liquidity_state"] = {
+            "value": liquidity_ratio,
+            "details": {
+                "cash": cash,
+                "net_worth": net_worth,
+                "days_remaining": days_remaining,
+                "steps_remaining": steps_remaining,
+                "money_per_day_remaining": (
+                    self.financial.get_money_per_day_remaining()
+                ),
+            },
+        }
+
+        season_progress = self.financial.get_season_progress()
+        self.semantic["situations"]["time_pressure"] = {
+            "value": season_progress,
+            "details": {
+                "season_progress": season_progress,
+                "days_remaining": days_remaining,
+                "steps_remaining": steps_remaining,
+            },
+        }
+
+        market_prices = self.market.get_features().get("prices", {})
+        market_by_product = {
+            product: self._get_market_context(product)
+            for product in market_prices
+        }
+        self.semantic["situations"]["market_state"] = {
+            "value": bool(market_by_product),
+            "details": {
+                "products_with_market_data": len(market_by_product),
+                "by_product": market_by_product,
+            },
+        }
+
         animals_at_escape_risk = [
             animal
             for animal in self.livestock.get_animal_details()
-            if animal.get("consecutive_unfed", 0) >= 1
+            if (
+                animal.get("consecutive_unfed", 0) >= 1
+                and not animal.get("fed_today", False)
+            )
         ]
         self.semantic["risks"]["livestock_maintenance_risk"] = {
             "value": bool(animals_at_escape_risk),

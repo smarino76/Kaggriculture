@@ -2,9 +2,9 @@
 
 > **Estado del documento:** documento histórico de ideación y contexto arquitectónico. No es una especificación de implementación. Para features de `SemanticState`, consultar `Semantic contract.md`; para patrones no validados, consultar `Semantic pattern.md`.
 
-## Estado actual (2026-09-29)
+## Estado actual (2026-10-04)
 
-Implementados: `FinancialExpert`, `AgricultureExpert`, `InventoryExpert`, `LivestockExpert`, `MarketExpert` y `OpponentExpert` (seis Business Experts). `SemanticState` está implementado como esqueleto vacío con `risks`, `opportunities`, `situations` y `relationships`.
+Implementados: `FinancialExpert`, `AgricultureExpert`, `InventoryExpert`, `LivestockExpert`, `MarketExpert` y `OpponentExpert` (seis Business Experts). `SemanticState` está implementado con 14 features semánticas (8 situaciones, 3 relaciones y 3 riesgos); las cuatro categorías `risks`, `opportunities`, `situations` y `relationships` están presentes. La lista exacta y su contrato vigente están en `Semantic contract.md`. `opportunities` está vacío actualmente.
 
 `OperationsExpert`, `ProductionExpert`, `StrategicExpert`, `StateTransition`, reward, credit assignment, Decision Experts y Coordinator no están implementados. La existencia de `StrategicExpert` está decidida a nivel arquitectónico; su interfaz y fuentes siguen abiertas. Las listas de features de este documento son ideas, salvo que se confirmen en el código y en el contrato semántico.
 
@@ -1569,41 +1569,17 @@ The recent cow disappearance test is an example of this validation phase.
 
 ---
 
-## Phase 3 — SemanticState (Current Work)
+## Phase 3 - SemanticState (Implemented baseline; ongoing audit)
 
-Build the integration layer that combines:
+`SemanticState` combines facts from Financial, Agriculture, Inventory, Livestock, Market and observable public Opponent information into the stable categories `situations`, `relationships`, `risks` and `opportunities`. It currently emits 14 features. Consult `Semantic contract.md` for the exact names, sources and rules.
 
-```text
-Financial
-Agriculture
-Inventory
-Livestock
-Market
-Opponent (observable public state only)
-```
-
-into the existing structured `SemanticState`. Its current implementation initializes empty semantic categories; features must be audited against actual getters before implementation.
-
-The skeleton exists; the current work is auditing and implementing validated features.
+The ongoing work is to validate and improve this shared semantic feature catalog. Candidate patterns are hypotheses and enter the implementation only after their source, deterministic rule, retained context, granularity, redundancy and leakage have been reviewed.
 
 ---
 
-## Phase 4 — Validate and Implement Semantic Features
+## Phase 4 - Model-specific datasets (Future)
 
-Validated cross-domain relationships, situations, risks and opportunities belong inside `SemanticState`, not in a required downstream synthetic-feature layer. Candidate examples include:
-
-```text
-feed_shortage
-resource_pressure
-liquidity_pressure
-production_ready
-production_capacity
-maintenance_requirements
-economic_exposure
-market_opportunity_context
-```
-
-These are not raw domain facts and are not implemented merely because they appear in a brainstorming list. Their sources, getters, rules, granularity, redundancy and leakage must be validated in `Semantic contract.md`.
+Each future model will have a task-specific target and input feature set selected or transformed from the shared `SemanticState` catalog. Define those separately before creating its training dataset. `semantic_dataset.jsonl` is an observation/action log for inspection and collection; it does not itself define every model's dataset, target, or training process.
 
 ---
 
@@ -1722,62 +1698,24 @@ with opponent information restricted to what would actually be observable during
 
 ---
 
-# 21. Current Recommended Next Step
+# 21. Current Position and Recommended Next Step
 
-The original plan of simply proceeding from:
-
-```text
-MarketExpert
-    ↓
-OperationsExpert
-```
-
-is no longer the best immediate step.
-
-The current state is:
+The current pipeline is:
 
 ```text
-FinancialExpert       DONE
-AgricultureExpert     DONE
-InventoryExpert       DONE
-LivestockExpert       DONE
-MarketExpert          DONE
-OpponentExpert        DONE
-SemanticState         EMPTY SKELETON
-             ↓
-          MASTER CONTRACT AUDIT
-             ↓
-       VALIDATED SEMANTIC FEATURES
-             ↓
-       StrategicExpert (interface still open)
-             ↓
-      STATE TRANSITION / REWARD
-             ↓
-          CREDIT ASSIGNMENT
-             ↓
-     DECISION EXPERTS + COORDINATOR
+RAW OBSERVATION
+    ->
+Six Business Experts (deterministic domain facts)
+    ->
+SemanticState (14 shared semantic features; contract in Semantic contract.md)
+    ->
+Future: model-specific feature selection / transformation
+    ->
+Future: separate datasets and targets for each model
+    ->
+Future: model training and evaluation
 ```
 
-`StrategicExpert`, state transitions, reward/credit and the decision architecture are future work; only the six listed Business Experts and the empty `SemanticState` skeleton are implemented in this scope.
+The immediate work remains the quality and coverage of the shared `SemanticState` feature catalog: validate sources and rules, retain useful context, preserve product-level information, and avoid redundant or action/target-leaking features. Candidate patterns are not automatically approved. Do not treat reward, credit assignment, or RL as the next step; those belong to a later, separately approved phase.
 
-This order keeps the architecture deterministic and testable and avoids adding Experts merely for the sake of adding more classes.
-
-The immediate objective is therefore **not to make the agent smarter yet**.
-
-The immediate objective is to make sure that, given any observation, the system can answer correctly:
-
-```text
-How much money do I have?
-What assets do I own?
-What physical resources do I have?
-What crops do I have?
-What animals do I have?
-What condition are they in?
-What is happening in the market?
-```
-
-Only after those answers are reliable should the system begin reasoning about:
-
-```text
-What should I do?
-```
+`semantic_dataset.jsonl` currently provides a chronological record of semantic observations and actions. It is useful for inspection and data collection, but it is not yet a set of model-specific training datasets and does not establish training targets by itself.

@@ -1,3 +1,6 @@
+import json
+from uuid import uuid4
+
 from experts.business import (
     FinancialExpert,
     AgricultureExpert,
@@ -13,6 +16,9 @@ from models.layers.semantic import SemanticState
 market_expert = MarketExpert()
 
 DEBUG_LOG_PATH = Path(__file__).with_name("agent_debug.log")
+SEMANTIC_LOG_PATH = Path(__file__).with_name("semantic.log")
+SEMANTIC_DATASET_PATH = Path(__file__).with_name("semantic_dataset.jsonl")
+DATASET_RUN_ID = uuid4().hex
 
 # Used only to avoid printing the same observation multiple times.
 last_debug_step = None
@@ -53,9 +59,7 @@ def agent(obs):
     livestock_expert.process_observation(obs)
     opponent_expert.process_observation(obs)
     semantic.process()
-    
-    with open("semantic.log","w") as f:
-        f.write(f"Semantic: {semantic.get_features()}\n")
+    semantic_features = semantic.get_features()
     
     # ---------------------------------------------------------
     # DEBUG
@@ -129,15 +133,36 @@ def agent(obs):
 
     def finish_action(farmer_action, market_actions=None):
 
-        return {
+        action = {
             "farmer": farmer_action,
             "hands": [],
             "market": (
-                market_actions
+                list(market_actions)
                 if market_actions is not None
                 else []
             ),
         }
+
+        dataset_row = {
+            "schema_version": "semantic_v1",
+            "run_id": DATASET_RUN_ID,
+            "step": obs["step"],
+            "day": obs["day"],
+            "player": player,
+            "semantic": semantic_features,
+            "action": action,
+        }
+
+        with SEMANTIC_DATASET_PATH.open("a", encoding="utf-8") as dataset_file:
+            json.dump(dataset_row, dataset_file, ensure_ascii=False)
+            dataset_file.write("\n")
+
+        with SEMANTIC_LOG_PATH.open("w", encoding="utf-8") as semantic_file:
+            semantic_file.write("Semantic: ")
+            json.dump(semantic_features, semantic_file, ensure_ascii=False)
+            semantic_file.write("\n")
+
+        return action
 
     # ---------------------------------------------------------
     # MARKET ACTIONS

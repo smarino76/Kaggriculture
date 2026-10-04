@@ -1,6 +1,6 @@
 # Kaggriculture — Reward Distribution & Credit Assignment Brainstorming
 
-> **Status:** future architecture and hypothesis space, not current implementation. `StrategicExpert`, `StateTransition`, `RewardEngine`, `CreditAssignment`, Decision Experts and Coordinator are not implemented. Reward formulas below are candidates, not decisions. Current work is auditing and implementing validated `SemanticState` features.
+> **Status:** future architecture and hypothesis space, not current implementation. `StrategicExpert`, `StateTransition`, `RewardEngine`, `CreditAssignment`, Decision Experts and Coordinator are not implemented. Reward formulas below are candidates, not decisions. Current project position: `SemanticState` already contains 14 shared semantic features (8 situations, 3 relationships, 3 risks; see `Semantic contract.md`). Improving that feature catalog and later constructing distinct model-specific datasets precede this document’s reward/credit-assignment work. No model training or reward implementation is implied by the semantic log.
 
 ## 1. Objective
 
@@ -1358,7 +1358,7 @@ Six implemented Business Experts
     ↓
 Domain facts
     ↓
-SemanticState (empty skeleton; features under audit)
+SemanticState (14 shared semantic features; see Semantic contract.md)
     ↓
 StrategicExpert → competitive / strategic state (future; interface open)
     ↓
@@ -1660,30 +1660,15 @@ may inspect additional retrospective information
 
 # 38. Updated development phase
 
-Before implementing the final reward function:
+This is a future reward/credit-assignment roadmap. It starts only after the shared semantic catalog and any task-specific datasets needed for a model are defined; it is not the current implementation checklist. Before implementing the final reward function:
 
-### Step 1 — Audit implemented Experts and SemanticState
+### Step 1 - Maintain the shared SemanticState catalog
 
-The six implemented experts are Financial, Agriculture, Inventory, Livestock, Market and Opponent. OperationsExpert and ProductionExpert are not implemented. StrategicExpert is an architectural decision but is not implemented.
+The current implementation has 14 shared semantic features. Keep their definitions aligned with the code and `Semantic contract.md`; review new candidates before implementation.
 
-Validate each candidate feature against actual ownership and getters, and record:
+### Step 2 - Define model-specific datasets (future, before training)
 
-```text
-feature
-source
-getter
-rule
-meaning
-granularity
-dimension
-redundancy
-leakage
-decision
-```
-
-### Step 2 — Finalize the candidate semantic contract
-
-Resolve duplicates, product granularity, thresholds and unresolved semantics before implementing features inside `SemanticState`.
+For each model, specify its task and target, observation-time inputs, sampling unit and evaluation approach. Select or transform the relevant features from the shared catalog. `semantic_dataset.jsonl` is a log of semantic observations and actions, not a finalized model-specific training dataset.
 
 ### Step 3 — Define public opponent information
 
