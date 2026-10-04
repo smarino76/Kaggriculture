@@ -1,6 +1,6 @@
 # Semantic Pattern Space — Kaggriculture
 
-> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` implementa actualmente `situations.livestock_present`, `situations.production_ready`, `situations.livestock_attention`, `situations.farm_capacity_state`, `relationships.production_storage_relationship`, `relationships.inventory_market_relationship`, `relationships.production_market_relationship`, `risks.storage_pressure` y `risks.production_storage_risk`; ningún otro patrón de este documento se considera implementado por aparecer aquí.
+> **Estado:** espacio de hipótesis, no especificación de features. `SemanticState` implementa actualmente `situations.livestock_present`, `situations.production_ready`, `situations.livestock_attention`, `situations.storage_state`, `situations.farm_capacity_state`, `relationships.production_storage_relationship`, `relationships.inventory_market_relationship`, `relationships.production_market_relationship`, `risks.storage_pressure`, `risks.production_storage_risk` y `risks.livestock_maintenance_risk`; ningún otro patrón de este documento se considera implementado por aparecer aquí.
 
 ## 1. Purpose
 

@@ -85,7 +85,7 @@ Los `NO` heredados en la columna de target leakage son hipótesis del borrador, 
 | ------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- | -------------- |
 | `liquidity_pressure`            | `float + bool` | Presión financiera sobre la capacidad de operar                                                                 | Financial               | `get_liquidity_ratio()`, `get_cash()`, `get_days_remaining()`                  | Determinar el nivel mediante una condición financiera que deberá definirse | Ratio + intensidad + contexto temporal | Permite aprender cuándo determinadas acciones son financieramente sostenibles | NO             |
 | `storage_pressure`              | `value: bool; details: {shed_utilization: float, shed_available: int, shed_capacity: int, shed_used: int}` | El cobertizo está lleno y no admite más artículos | Inventory | `get_shed_utilization()`, `get_shed_available()`, `get_shed_capacity()`, `get_shed_used()` | `value = shed_available == 0` | Utilización y capacidad restante/total | Describe una restricción física actual | TBD |
-| `livestock_maintenance_risk`    | `bool + details` | Riesgo de mantenimiento inferido de una situación de atención ya validada                                        | Livestock               | `get_animal_details()`                                                         | TBD; debe ser distinto de la situación de atención                           | Situación base + interpretación       | Puede representar consecuencia contextual sin duplicar el hecho               | TBD            |
+| `livestock_maintenance_risk`    | `value: bool; details: {animals_at_escape_risk: int, escape_rule_consecutive_unfed_days: int, animals: list[animal_detail]}` | Riesgo observable de que un animal colocado escape por falta de alimentación | Livestock | `get_animal_details()` | Activar si cualquier animal tiene `consecutive_unfed >= 1`; el juego elimina al animal al alcanzar 2 días consecutivos sin alimentar | Animales afectados y estado de alimentación observado | Señala una consecuencia próxima y verificable, distinta de la necesidad diaria de alimentar | TBD |
 | `production_storage_risk`       | `value: bool; details: {production_storage_relationship: object, production_exceeding_available_storage: number}` | La producción lista supera el espacio libre del cobertizo | Agriculture + Inventory | Relación `production_storage_relationship` | `value = capacity_gap_units > 0`; derivar exclusivamente de la relación | Relación canónica y excedente en unidades | Identifica producción que no cabe en el espacio actual | TBD |
 | `liquidity_investment_pressure` | `float + bool` | Relación entre liquidez actual y capital comprometido en inversiones                                            | Financial               | `get_liquidity_ratio()`, `get_investments()`, `get_cash()`                     | Relacionar recursos líquidos con inversiones existentes                    | Cash + inversiones                     | Ayuda a distinguir capacidad económica de capacidad financiera inmediata      | NO             |
 
@@ -110,7 +110,7 @@ Los `NO` heredados en la columna de target leakage son hipótesis del borrador, 
 | `production_ready`             | `value: bool; details: {ready_plants: int, production_ready_now: number, by_product: dict[str,{ready_plants: int, yield_units: number}]}` | Existe producción agrícola lista actualmente | Agriculture | `get_crop_details()` | Una planta está lista cuando `is_ready` es verdadero (`yield_units > 0`); sumar plantas y unidades listas por producto | Booleano contextualizado con cantidad de plantas y rendimiento listo por producto | Contexto para modelos productivos | TBD |
 | `livestock_present`            | `value: bool; details: {total_animals: int, placed_animals: dict[str,int], shed_animals: dict[str,int], carried_animals: dict[str,int]}` | Presencia actual de ganado del jugador | Livestock | `get_total_animals()`, `get_placed_animals()`, `get_shed_animals()`, `get_carried_animals()` | `value = total_animals > 0` | Conserva el total y distribución por ubicación para contextualizar el booleano | Contextualiza análisis ganadero/económico | NO |
 | `livestock_attention`          | `value: bool; details: {animals_needing_feed: int, animals: list[animal_detail]}` | Animales colocados que muestran necesidad de alimentación | Livestock | `get_animal_details()` | Un animal requiere atención cuando el detalle observable indica `needs_feed` | Conteo y detalles de animales que cumplen la condición | Contexto operativo sin recomendar una acción | TBD |
-| `storage_state`                | `categorical`  | Estado semántico del almacenamiento              | Inventory   | `get_shed_utilization()`, `get_shed_available()`                                                       | Clasificar utilización según umbrales definidos         | Magnitud + categoría              | Permite modelos que reaccionen al grado de ocupación          | NO             |
+| `storage_state`                | `value: float; details: {shed_used: int, shed_capacity: int, shed_available: int}` | Fracción actual de capacidad de almacenamiento utilizada | Inventory | `get_shed_utilization()`, `get_shed_available()`, `get_shed_capacity()`, `get_shed_used()` | `value = shed_used / shed_capacity` según el getter del experto; el valor está entre 0 y 1 | Utilización continua y magnitudes que la explican | Da el grado de ocupación sin imponer categorías o umbrales arbitrarios | TBD |
 | `liquidity_state`              | `categorical`  | Situación de liquidez actual                     | Financial   | `get_liquidity_ratio()`, `get_cash()`, `get_days_remaining()`                                          | Clasificación basada en reglas definidas                | Ratio + cash + horizonte temporal | Contexto económico general                                    | NO             |
 | `market_state`                 | `categorical`  | Situación actual del mercado para cada producto | Market      | Getters de Market que reciben `product`                                                           | Combinar tendencia + presión + posición; regla TBD       | Por producto; dirección + intensidad + posición | Permite aprendizaje condicionado por mercado | TBD |
 | `farm_capacity_state`          | `value: float; details: {agricultural_surface: int, occupied_surface: int, crop_surface: int, weed_surface: int, free_surface: int}` | Fracción de superficie agrícola no libre (cultivos o maleza) | Agriculture | `get_agricultural_surface()`, `get_occupied_agricultural_surface()`, `get_weed_agricultural_surface()`, `get_free_agricultural_surface()` | `occupied_surface = crop_surface + weed_surface`; `value = occupied_surface / agricultural_surface`; si la superficie es cero, `0.0` | Proporción y desglose de superficie total, cultivos, maleza y superficie libre | Contextualiza el margen físico de cultivo sin umbrales arbitrarios | TBD |
@@ -141,16 +141,17 @@ Los `NO` heredados en la columna de target leakage son hipótesis del borrador, 
 * `situations.production_ready`
 * `situations.livestock_attention`
 * `situations.farm_capacity_state`
+* `situations.storage_state`
 * `relationships.production_storage_relationship`
 * `relationships.inventory_market_relationship`
 * `relationships.production_market_relationship`
 * `risks.storage_pressure`
 * `risks.production_storage_risk`
+* `risks.livestock_maintenance_risk`
 
 ## RISKS
 
 * `liquidity_pressure`
-* `livestock_maintenance_risk` (rule TBD; distinct from attention situation)
 
 ## OPPORTUNITIES
 
@@ -161,7 +162,6 @@ Los `NO` heredados en la columna de target leakage son hipótesis del borrador, 
 
 ## SITUATIONS
 
-* `storage_state`
 * `liquidity_state`
 * `market_state`
 * `time_pressure`
@@ -179,7 +179,7 @@ Market-related relationships are product-keyed; no global average is implied.
 * `investment_opportunity`
 * `financial_opportunity_relationship`
 * Meaning and rule for `time_pressure` and `liquidity_pressure`
-* Thresholds for categorical `storage_state`, `liquidity_state` and `market_state`
+* Thresholds for categorical `liquidity_state` and `market_state`
 * Sources and rules for remaining per-product opportunity features
 
 ---

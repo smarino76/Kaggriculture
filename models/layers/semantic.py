@@ -119,6 +119,33 @@ class SemanticState:
             },
         }
 
+        shed_capacity = self.inventory.get_shed_capacity()
+        shed_used = self.inventory.get_shed_used()
+        shed_available = self.inventory.get_shed_available()
+        shed_utilization = self.inventory.get_shed_utilization()
+        self.semantic["situations"]["storage_state"] = {
+            "value": shed_utilization,
+            "details": {
+                "shed_used": shed_used,
+                "shed_capacity": shed_capacity,
+                "shed_available": shed_available,
+            },
+        }
+
+        animals_at_escape_risk = [
+            animal
+            for animal in self.livestock.get_animal_details()
+            if animal.get("consecutive_unfed", 0) >= 1
+        ]
+        self.semantic["risks"]["livestock_maintenance_risk"] = {
+            "value": bool(animals_at_escape_risk),
+            "details": {
+                "animals_at_escape_risk": len(animals_at_escape_risk),
+                "escape_rule_consecutive_unfed_days": 2,
+                "animals": animals_at_escape_risk,
+            },
+        }
+
         physical_inventory = self.inventory.get_total_physical()
         inventory_market_by_product = {
             product: {
@@ -179,9 +206,6 @@ class SemanticState:
             },
         }
 
-        shed_capacity = self.inventory.get_shed_capacity()
-        shed_used = self.inventory.get_shed_used()
-        shed_available = self.inventory.get_shed_available()
         production_storage_gap = production_ready_now - shed_available
         self.semantic["relationships"]["production_storage_relationship"] = {
             "value": production_storage_gap,
